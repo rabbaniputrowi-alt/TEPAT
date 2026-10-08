@@ -320,7 +320,14 @@ class TepatModel:
         return self.clf.predict_proba(F[self.features].fillna(0.0))[:, 1]
 
 
-def rank(F: pd.DataFrame, model: TepatModel, est_col: str, tag: str) -> pd.DataFrame:
+def cant_pay(F: pd.DataFrame) -> pd.Series:
+    """Late or partial at BOTH agencies plus shrinking headcount: distress, not selective default (I-39).
+    Tuned on branch A only: catches 12/18 C11 look-alikes there and no violators."""
+    return ((F.late_ks + F.partial_ks > 0.3) & (F.late_tk + F.partial_tk > 0.3) & (F.decline > 0.1))
+
+
+def rank(F: pd.DataFrame, model: TepatModel, est_col: str, tag: str, cicilan_queue: bool = False) -> pd.DataFrame:
+    """cicilan_queue=True (v2.1): can't-pay employers go to an installment-offer queue, not the inspection list."""
     out = pd.DataFrame(index=F.index)
     p = model.predict(F)
     prior = F["band_obs"].map(model.prior_by_band).fillna(0.0)
@@ -330,6 +337,10 @@ def rank(F: pd.DataFrame, model: TepatModel, est_col: str, tag: str) -> pd.DataF
     out["expected_rp"] = p * np.maximum(est, 0.3 * prior)
     out["priority"] = out.expected_rp / F["hours"]
     out["rp_low"], out["rp_high"] = est * model.range_q[0], est * model.range_q[1]
+    cp = cant_pay(F)
+    out["queue"] = np.where(cicilan_queue & cp, "cicilan", "inspeksi")
+    if cicilan_queue:
+        out.loc[cp, "priority"] = out.loc[cp, "priority"] * 1e-6
     out["ranking"] = tag
     return out.sort_values("priority", ascending=False)
 
@@ -405,10 +416,12 @@ def reasons(r: pd.Series) -> list[tuple[float, str, str]]:
 
 
 def action(r: pd.Series, tier: str) -> tuple[str, str]:
-    cant_pay = (r.late_ks + r.partial_ks > 0.3) and (r.late_tk + r.partial_tk > 0.3) and r.decline > 0.1
-    pay_label = ("Kemungkinan tidak mampu bayar: tawarkan cicilan, bukan penindakan" if cant_pay else
+    cp = (r.late_ks + r.partial_ks > 0.3) and (r.late_tk + r.partial_tk > 0.3) and r.decline > 0.1
+    pay_label = ("Kemungkinan tidak mampu bayar: tawarkan cicilan, bukan penindakan" if cp else
                  "Indikasi tidak mau bayar (bayar BPJS TK, tidak bayar BPJS Kes): pertimbangkan Ps. 55 UU 24/2011" if r.selective > 0.25 else "")
     strong = r.rws_n > 0 or r.rp_care_liability > 0 or r.selective > 0.25 or r.clinic_tk_n > 0
+    if cp:
+        return "Antrean cicilan: hubungi untuk program pembayaran bertahap", pay_label
     if tier == "Tinggi":
         act = "Pemeriksaan lapangan" if strong else "Pemeriksaan bersama BPJS Ketenagakerjaan"
     elif tier == "Sedang":

@@ -68,11 +68,12 @@ def cmd_all(args) -> None:
         F, T = feats[b], _truth(data / b)
         r_v1 = scorer.rank(F, m1, "est_recoverable_v1", "tepat_v1")
         r_v2 = scorer.rank(F, m2, "est_recoverable_v2", "tepat_v2")
+        r_v21 = scorer.rank(F, m2, "est_recoverable_v2", "tepat_v2_1", cicilan_queue=True)
         rankings = {"biggest_first": scorer.biggest_first(F), "rules_only": scorer.rules_only(F),
-                    "tepat_v1": r_v1, "tepat_v2": r_v2}
+                    "tepat_v1": r_v1, "tepat_v2": r_v2, "tepat_v2_1": r_v21}
         res = bench.run(F, T, rankings, cfg, seed=int(cfg["seed"]) + ord(b))
         results["branches"][b] = res
-        scorer.explain(F, r_v2).to_parquet(out / f"ranked_{b}.parquet")
+        scorer.explain(F, r_v21).to_parquet(out / f"ranked_{b}.parquet")
         tab = bench.summary_table(res)
         tab.insert(0, "branch", b)
         tables.append(tab)

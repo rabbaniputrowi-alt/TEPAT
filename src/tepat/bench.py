@@ -89,7 +89,8 @@ def fairness(picked: list[str], F: pd.DataFrame, T: pd.DataFrame) -> pd.DataFram
     return pd.concat(rows, ignore_index=True)
 
 
-def run(F: pd.DataFrame, T: pd.DataFrame, rankings: dict[str, pd.DataFrame], cfg: dict, seed: int) -> dict:
+def run(F: pd.DataFrame, T: pd.DataFrame, rankings: dict[str, pd.DataFrame], cfg: dict, seed: int,
+        final: str = "tepat_v2_1") -> dict:
     hours = F["hours"]
     budget = cfg["inspection"]["budget_frac"] * float(hours.sum())
     res: dict = {"budget_hours": budget, "employers": len(F), "violators": int(T.is_violator.sum()),
@@ -111,22 +112,23 @@ def run(F: pd.DataFrame, T: pd.DataFrame, rankings: dict[str, pd.DataFrame], cfg
         picked = select_by_budget(order, hours, budget)
         picks[name] = picked
         res["rankings"][name] = {**evaluate(picked, T, hours), **topk(order, T)}
-    # TEPAT v2 with an 8% random exploration arm (I-56)
-    if "tepat_v2" in rankings:
+    # final TEPAT version with an 8% random exploration arm (I-56)
+    if final in rankings:
         arm_budget = cfg["inspection"]["random_arm_frac"] * budget
         arm = stratified_random(F, hours, arm_budget, rng)
-        picked = select_by_budget(list(rankings["tepat_v2"].index), hours, budget, preselected=arm)
+        picked = select_by_budget(list(rankings[final].index), hours, budget, preselected=arm)
         ev = evaluate(picked, T, hours)
         ev["random_arm_size"] = len(arm)
         ev["random_arm_violation_rate"] = float(T.loc[arm, "is_violator"].mean()) if arm else 0.0
-        res["rankings"]["tepat_v2_with_random_arm"] = ev
-        R2 = rankings["tepat_v2"]
-        top = R2.loc[picks["tepat_v2"]]
+        res["rankings"][f"{final}_with_random_arm"] = ev
+        R2 = rankings[final]
+        top = R2.loc[picks[final]]
         tv = top.join(T[["is_violator", "recoverable_rp_true"]])
         tv = tv[tv.is_violator & (tv.est_rp > 0)]
         inside = (tv.recoverable_rp_true >= tv.rp_low) & (tv.recoverable_rp_true <= tv.rp_high)
-        res["rp_range_coverage_tepat_v2"] = float(inside.mean()) if len(tv) else None
-        res["fairness_tepat_v2"] = fairness(picks["tepat_v2"], F, T).to_dict(orient="records")
+        res["rp_range_coverage"] = float(inside.mean()) if len(tv) else None
+        res["fairness"] = fairness(picks[final], F, T).to_dict(orient="records")
+        res["final_ranking"] = final
     return res
 
 

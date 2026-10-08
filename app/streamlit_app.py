@@ -7,12 +7,14 @@ Inspector views read observed/ + the scorer's ranked output. Only the clearly la
 """
 from __future__ import annotations
 
+import base64
 import csv
 import hashlib
 import json
 import os
 from datetime import datetime
 from pathlib import Path
+from html import escape
 
 import altair as alt
 import numpy as np
@@ -33,7 +35,7 @@ RANK_LABEL = {"random": "Acak", "biggest_first": "Terbesar dulu", "rules_only": 
               "tepat_v1": "TEPAT v1", "tepat_v2": "TEPAT v2", "tepat_v2_1": "TEPAT v2.1",
               "tepat_v2_1_with_random_arm": "TEPAT v2.1 + jalur acak 8%"}
 
-st.set_page_config(page_title="TEPAT · Pemeriksaan Kepatuhan Tepat Sasaran", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="TEPAT · Pemeriksaan Kepatuhan Tepat Sasaran", page_icon=":material/center_focus_strong:", layout="wide")
 
 
 # --------------------------------------------------------------------------- helpers
@@ -97,44 +99,95 @@ def add_tip(nik: str, employer_id: str, jenis: str) -> str:
     return tiket
 
 
-# --------------------------------------------------------------------------- sidebar
+def open_case(employer_id: str) -> None:
+    """Preserve the selected queue case when opening the inspector view."""
+    st.session_state["view"] = "Kasus perusahaan"
+    st.session_state["case_employer"] = employer_id
 
-st.sidebar.title("🎯 TEPAT")
-st.sidebar.caption("Pemeriksaan Kepatuhan Tepat Sasaran · Tim Johannes Kepler · Healthkathon 2026")
-branch = st.sidebar.selectbox("Cabang data sintetis", ["B", "C", "A"], index=0,
-                              format_func=lambda b: {"A": "A (tuning)", "B": "B (uji)", "C": "C (uji bergeser)"}[b])
-st.sidebar.warning("Semua perusahaan, pekerja, NIK dan angka di sini **sintetis**. NIK diawali 99 (bukan kode provinsi). "
-                   "UMK memakai kab/kota fiktif.", icon="⚠️")
 
-obs, ranked, F, reg = load(branch)
+ASSETS = ROOT / "app" / "assets"
+font_data = base64.b64encode((ASSETS / "public-sans-latin.woff2").read_bytes()).decode("ascii")
+css = (ASSETS / "workspace.css").read_text(encoding="utf-8").replace("__PUBLIC_SANS__", font_data)
+st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Benchmark", "Keadilan & jalur acak", "Cek kepesertaan saya"]
+DESCRIPTIONS = {
+    "Daftar prioritas": "Tentukan kapasitas pemeriksaan. Dahulukan potensi pemulihan per jam tertinggi.",
+    "Kasus perusahaan": "Telusuri sinyal, dasar hukum, dan dokumen sebelum mengambil keputusan.",
+    "Benchmark": "Bandingkan metode dengan anggaran jam yang sama. Semua hasil berasal dari simulasi sintetis.",
+    "Keadilan & jalur acak": "Pantau siapa yang terpilih dan siapa yang terlewat. Jangan hanya belajar dari kasus berisiko tinggi.",
+    "Cek kepesertaan saya": "Apakah pemberi kerja sudah mendaftarkan Anda dan membayar iuran? Coba dengan NIK sintetis.",
+}
+CHART_CONFIG = {
+    "background": "#ffffff", "view": {"stroke": None},
+    "axis": {"labelFont": "Public Sans", "titleFont": "Public Sans", "labelFontSize": 11,
+             "titleFontSize": 11, "labelColor": "#587078", "titleColor": "#365a60",
+             "gridColor": "#e6eeee", "domain": False, "ticks": False, "labelPadding": 8,
+             "titlePadding": 14, "labelLimit": 230},
+    "legend": {"labelFont": "Public Sans", "titleFont": "Public Sans", "labelFontSize": 11,
+               "labelColor": "#587078", "symbolType": "circle", "padding": 14},
+}
+
+# Persistent workspace shell -------------------------------------------------
+st.sidebar.markdown('<div class="sidebar-brand"><svg width="35" height="35" viewBox="0 0 35 35" aria-hidden="true">'
+                    '<path d="M13 3H3v10M22 3h10v10M3 22v10h10M32 22v10H22" fill="none" stroke="#b7e9df" '
+                    'stroke-width="3.5" stroke-linecap="round"/><circle cx="17.5" cy="17.5" r="4" fill="#b7e9df"/>'
+                    '</svg><strong>TEPAT</strong></div>'
+                    '<div class="sidebar-description">Pemeriksaan kepatuhan<br>tepat sasaran.</div>', unsafe_allow_html=True)
+view = st.sidebar.radio("Ruang kerja", VIEWS, key="view", label_visibility="collapsed")
+branch = st.sidebar.selectbox("Cabang data sintetis", ["B", "C", "A"], key="branch",
+                              format_func=lambda b: {"A": "A — tuning", "B": "B — uji tertahan", "C": "C — uji bergeser"}[b])
+try:
+    obs, ranked, F, reg = load(branch)
+except FileNotFoundError:
+    st.error("Data demo belum tersedia. Jalankan perintah berikut di folder repo, lalu muat ulang halaman.")
+    st.code("uv run tepat all", language="bash")
+    st.stop()
 lookback = 12
 D = R.SCORING_DAY
+st.sidebar.markdown(f'<div class="sidebar-context"><b>{len(reg):,}</b> perusahaan sintetis<br>'
+                    f'{month_label(0)} – {month_label(R.HORIZON_MONTHS - 1)}<br>Model TEPAT v2.1</div>', unsafe_allow_html=True)
+st.sidebar.markdown('<div class="sidebar-note"><strong>Bukan data BPJS asli</strong>'
+                    'Perusahaan, pekerja, NIK, dan UMK fiktif. NIK demo diawali 99. Tidak terhubung ke layanan BPJS.</div>'
+                    '<div class="sidebar-credit">Tim Johannes Kepler<br>Healthkathon 2026</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="workspace-topbar"><span class="workspace-name">Ruang pemeriksaan</span>'
+            f'<div class="workspace-tags"><span class="pill">Cabang {escape(branch)}</span>'
+            '<span class="pill">Prototipe</span><span class="pill teal">Data sintetis</span></div></div>', unsafe_allow_html=True)
+st.title(view)
+st.caption(DESCRIPTIONS[view])
 
-tab_list, tab_case, tab_bench, tab_fair, tab_worker = st.tabs(
-    ["📋 Daftar Prioritas", "🔎 Kasus Perusahaan", "📊 Benchmark", "⚖️ Keadilan & Jalur Acak", "🙋 Cek Kepesertaan Saya"])
-
-# --------------------------------------------------------------------------- 1. inspector list
-
-with tab_list:
-    st.subheader("Daftar pemeriksaan, diurutkan menurut perkiraan Rp yang dipulihkan per jam pemeriksaan")
+# 1. Inspection queue --------------------------------------------------------
+if view == "Daftar prioritas":
     L = ranked.join(reg[["name", "sector", "kabkota"]]).join(F[["band_obs", "hours"]])
-    c1, c2, c3, c4 = st.columns(4)
-    kab = c1.multiselect("Kab/Kota", sorted(L.kabkota.unique()), default=sorted(L.kabkota.unique()))
-    tiers = c2.multiselect("Tingkat", ["Tinggi", "Sedang", "Rendah"], default=["Tinggi", "Sedang"])
-    queue = c3.radio("Antrean", ["inspeksi", "cicilan"], horizontal=True,
-                     format_func=lambda q: {"inspeksi": "Pemeriksaan", "cicilan": "Cicilan (tidak mampu bayar)"}[q])
-    total_h = float(F.hours.sum())
-    budget = c4.slider("Anggaran jam pemeriksaan", 50, int(total_h * 0.3), int(total_h * 0.10), step=25)
+    summary = st.container(key="summary")
+    with st.container(border=True, key="capacity"):
+        left, right = st.columns([3, 2], gap="large")
+        with left:
+            st.subheader("Kapasitas pemeriksaan")
+            total_h = float(F.hours.sum())
+            budget = st.slider("Anggaran jam pemeriksaan", 50, int(total_h * 0.3), int(total_h * 0.10), step=25,
+                               key="budget", help="Anggaran seluruh cabang, bukan hanya baris setelah filter.")
+        with right:
+            st.subheader("Rute tindak lanjut")
+            queue = st.radio("Antrean", ["inspeksi", "cicilan"], horizontal=True, key="queue",
+                             format_func=lambda q: {"inspeksi": "Pemeriksaan", "cicilan": "Cicilan"}[q], label_visibility="collapsed")
+            st.caption("Ketidakmampuan bayar diarahkan ke cicilan, bukan otomatis ke pemeriksaan.")
     insp = L[L.queue == "inspeksi"]
     in_budget = set(insp.index[insp.hours.cumsum() <= budget])
-    V = L[L.kabkota.isin(kab) & L.tier.isin(tiers) & (L.queue == queue)].copy()
-    V["anggaran"] = np.where(V.index.isin(in_budget), "✅", "")
-    m1, m2, m3, m4 = st.columns(4)
     sel = L.loc[list(in_budget)]
-    m1.metric("Perusahaan dalam anggaran", f"{len(sel)}")
-    m2.metric("Perkiraan Rp dipulihkan", jt(sel.expected_rp.sum()))
-    m3.metric("Rp per jam (perkiraan)", jt(sel.expected_rp.sum() / max(1, sel.hours.sum())))
-    m4.metric("Antrean cicilan", f"{int((L.queue == 'cicilan').sum())} perusahaan")
+    with summary:
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Perkiraan pemulihan", jt(sel.expected_rp.sum()))
+        m2.metric("Perusahaan dalam anggaran", f"{len(sel)}")
+        m3.metric("Perkiraan Rp per jam", jt(sel.expected_rp.sum() / max(1, sel.hours.sum())))
+        m4.metric("Antrean cicilan", f"{int((L.queue == 'cicilan').sum())}")
+    with st.expander("Filter daftar", expanded=False):
+        c1, c2 = st.columns(2)
+        kab = c1.multiselect("Kab/Kota", sorted(L.kabkota.unique()), default=sorted(L.kabkota.unique()), key="districts")
+        tiers = c2.multiselect("Tingkat", ["Tinggi", "Sedang", "Rendah"], default=["Tinggi", "Sedang"], key="tiers")
+    V = L[L.kabkota.isin(kab) & L.tier.isin(tiers) & (L.queue == queue)].copy()
+    V["anggaran"] = np.where(V.index.isin(in_budget), "Terpilih", "Di luar anggaran")
+    st.subheader("Perusahaan untuk ditinjau")
+    st.caption(f"{len(V)} perusahaan ditampilkan. Ringkasan anggaran mencakup seluruh cabang; filter hanya mengubah daftar.")
     show = pd.DataFrame({
         "Peringkat": V["rank"], "Anggaran": V.anggaran, "Perusahaan": V["name"], "Sektor": V.sector.map(SEKTOR),
         "Kab/Kota": V.kabkota, "Skala": V.band_obs, "Tingkat": V.tier,
@@ -142,168 +195,204 @@ with tab_list:
         "Rentang": [f"{jt(a)} – {jt(b)}" for a, b in zip(V.rp_low, V.rp_high)],
         "Rp/jam": (V.expected_rp / V.hours).map(jt), "Alasan utama": V.top_reasons.str.split(" \\| ").str[0],
         "Tindakan": V.action}, index=V.index)
-    st.dataframe(show, height=520, width="stretch",
-                 column_config={"P(pelanggaran)": st.column_config.ProgressColumn(min_value=0, max_value=1, format="%.2f")})
-    st.caption("Keputusan memeriksa tetap di tangan petugas. TEPAT hanya mengurutkan dan menjelaskan (UU PDP Ps. 10: tidak ada "
-               "keputusan otomatis semata). 8% anggaran disisihkan untuk pemeriksaan acak (lihat tab Keadilan).")
+    table_col, preview_col = st.columns([3, 1], gap="large")
+    with table_col:
+        st.dataframe(show, height=460, width="stretch", hide_index=True,
+                     column_order=["Peringkat", "Perusahaan", "P(pelanggaran)", "Rp/jam", "Tingkat", "Anggaran",
+                                   "Kab/Kota", "Sektor", "Skala", "Perkiraan Rp", "Rentang", "Alasan utama", "Tindakan"],
+                     column_config={"Peringkat": st.column_config.NumberColumn("#", width="small"),
+                                    "Perusahaan": st.column_config.TextColumn(width="medium"),
+                                    "P(pelanggaran)": st.column_config.ProgressColumn(min_value=0, max_value=1, format="percent")})
+    with preview_col, st.container(border=True):
+        if not V.empty:
+            top_id = V.index[0]
+            top = V.iloc[0]
+            st.caption("Kasus teratas dari filter")
+            st.markdown(f'<span class="pill teal">#{int(top["rank"])} / {escape(top.tier)}</span>'
+                        f'<div class="case-preview-name">{escape(top["name"])}</div>'
+                        f'<div class="case-preview-detail">{escape(SEKTOR[top.sector])}<br>{escape(top.kabkota)}</div>', unsafe_allow_html=True)
+            st.metric("P(pelanggaran)", f"{top.p_violation:.0%}")
+            st.caption(top.action)
+            st.button("Buka kasus", key="open_case", type="primary", width="stretch", on_click=open_case, args=(top_id,))
+        else:
+            st.info("Tidak ada perusahaan sesuai filter. Pilih wilayah atau tingkat lain pada Filter daftar.")
+    st.caption("Petugas tetap mengambil keputusan. Tidak ada keputusan otomatis semata (UU PDP Ps. 10). "
+               "Jalur acak 8% ditampilkan pada halaman Keadilan; slider ini mengilustrasikan prioritas tanpa jalur acak.")
 
-# --------------------------------------------------------------------------- 2. case page
-
-with tab_case:
+# 2. Case --------------------------------------------------------------------
+if view == "Kasus perusahaan":
     tips = read_tips()
     order = list(ranked.index)
-    default = order[0]
-    opts = order[:300]
-    eid = st.selectbox("Pilih perusahaan", opts, index=0,
-                       format_func=lambda e: f"#{int(ranked.at[e, 'rank'])} · {reg.at[e, 'name']} ({e})")
+    eid = st.selectbox("Pilih perusahaan", order, index=0, key="case_employer",
+                       format_func=lambda e: f"#{int(ranked.at[e, 'rank'])} — {reg.at[e, 'name']} ({e})")
     r, f_ = ranked.loc[eid], F.loc[eid]
-    st.subheader(f"{reg.at[eid, 'name']} · {SEKTOR[reg.at[eid, 'sector']]} · {reg.at[eid, 'kabkota']}")
-    a, b, c, d = st.columns(4)
-    a.metric("Peringkat", f"#{int(r['rank'])} ({r.tier})")
-    b.metric("P(pelanggaran)", f"{r.p_violation:.0%}")
-    c.metric("Perkiraan Rp dapat dipulihkan", jt(r.est_rp), help=f"Rentang {jt(r.rp_low)} – {jt(r.rp_high)} (persentil 10–90 dari data latih)")
-    d.metric("Perkiraan jam pemeriksaan", f"{int(f_.hours)} jam")
-    st.info(f"**Tindakan yang disarankan:** {r.action}" + (f"  \n**Catatan pembayaran:** {r.pay_label}" if r.pay_label else ""))
+    st.subheader(reg.at[eid, "name"])
+    st.caption(f"{SEKTOR[reg.at[eid, 'sector']]} | {reg.at[eid, 'kabkota']} | {eid}")
+    with st.container(key="summary"):
+        a, b, c, d = st.columns(4)
+        a.metric("Perkiraan pemulihan", jt(r.est_rp), help=f"Rentang {jt(r.rp_low)} – {jt(r.rp_high)} (persentil 10–90 dari data latih)")
+        b.metric("Peringkat", f"#{int(r['rank'])}")
+        c.metric("P(pelanggaran)", f"{r.p_violation:.0%}")
+        d.metric("Waktu pemeriksaan", f"{int(f_.hours)} jam")
+    with st.container(key="recommended"):
+        st.info(f"**Tindakan yang disarankan:** {r.action}" + (f"  \n**Catatan pembayaran:** {r.pay_label}" if r.pay_label else ""))
     n_tip = int((tips.employer_id == eid).sum()) if len(tips) else 0
     if n_tip:
-        st.warning(f"📣 {n_tip} laporan pekerja masuk melalui *Cek Kepesertaan Saya* untuk perusahaan ini.")
-
-    left, right = st.columns([3, 2])
+        st.warning(f"{n_tip} laporan demo pekerja masuk melalui Cek Kepesertaan Saya untuk perusahaan ini.")
+    left, right = st.columns([3, 2], gap="large")
     with left:
-        st.markdown("#### Mengapa perusahaan ini?")
-        rs = scorer.reasons(f_)
-        if not rs:
-            st.success("Tidak ada sinyal pelanggaran. Jalur hijau.")
-        for _, text, basis in rs[:6]:
-            st.markdown(f"- {text}  \n  <span style='opacity:.7'>Dasar: {basis}</span>", unsafe_allow_html=True)
-        st.markdown("#### Dokumen yang diminta saat pemeriksaan")
-        for x in scorer.brief(f_):
-            st.markdown(f"- {x}")
+        with st.container(border=True):
+            st.subheader("Mengapa perusahaan ini?")
+            rs = scorer.reasons(f_)
+            if not rs:
+                st.success("Tidak ada sinyal pelanggaran. Jalur hijau.")
+            for _, text, basis in rs[:6]:
+                st.markdown(f'<div class="signal-row"><strong>{escape(text)}</strong>'
+                            f'<small>Dasar: {escape(basis)}</small></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.subheader("Dokumen pemeriksaan")
+            documents = "".join(f"<li>{escape(x)}</li>" for x in scorer.brief(f_))
+            st.markdown(f'<ul class="document-list">{documents}</ul>', unsafe_allow_html=True)
     with right:
-        st.markdown("#### Komposisi perkiraan Rp")
-        comp = pd.DataFrame({"Komponen": ["Pekerja tidak terdaftar", "Upah (TK > Kes)", "Upah (pola sejenis)", "Tunggakan iuran",
-                                          "Terlambat daftar", "Nonaktif sebelum keluar", "Pindah segmen", "Klinik perusahaan",
-                                          "PHK berulang", "Biaya rawat saat nonaktif", "Tanggungan PHK"],
-                             "Rp": [f_.rp_headcount * lookback, f_.rp_wage2c * lookback, f_.rp_wage_peer * lookback,
-                                    f_.rp_arrears * lookback, f_.rp_lag * lookback, f_.rp_onoff * lookback,
-                                    f_.rp_group_move * lookback, f_.rp_clinic * lookback, f_.rp_phk_gap * lookback,
-                                    f_.rp_care_liability, f_.rp_phk_cover]})
-        comp = comp[comp.Rp > 0]
-        if len(comp):
-            st.altair_chart(alt.Chart(comp).mark_bar().encode(
-                x=alt.X("Rp:Q", title="Rp (12 bulan)"), y=alt.Y("Komponen:N", sort="-x", title=None),
-                tooltip=["Komponen", alt.Tooltip("Rp:Q", format=",.0f")]), width="stretch")
-        else:
-            st.caption("Tidak ada komponen Rp.")
-        bill = obs["billing"][obs["billing"].employer_id == eid].copy()
-        bill["Bulan"] = bill.month.map(month_label)
-        bill["Badan"] = bill.agency.map({"KS": "BPJS Kesehatan", "TK": "BPJS Ketenagakerjaan"})
-        bill["Terlambat (hari)"] = bill.days_late
-        bill["Kurang bayar"] = (bill.billed_rp - bill.paid_rp).clip(lower=0)
-        st.markdown("#### Pembayaran iuran 24 bulan")
-        st.altair_chart(alt.Chart(bill).mark_line(point=True).encode(
-            x=alt.X("month:Q", title="Bulan ke- (0 = Okt 2024)"), y=alt.Y("Terlambat (hari):Q"),
-            color=alt.Color("Badan:N", legend=alt.Legend(orient="bottom")),
-            tooltip=["Bulan", "Badan", "Terlambat (hari)", alt.Tooltip("Kurang bayar:Q", format=",.0f")]).properties(height=200),
-            width="stretch")
-    with st.expander("🔑 Kunci jawaban (hanya untuk demo sintetis, tidak tersedia di dunia nyata)"):
-        T = load_truth(branch)
-        t = T.loc[eid]
+        with st.container(border=True):
+            st.subheader("Komposisi perkiraan Rp")
+            comp = pd.DataFrame({"Komponen": ["Pekerja tidak terdaftar", "Upah (TK > Kes)", "Upah (pola sejenis)", "Tunggakan iuran",
+                                              "Terlambat daftar", "Nonaktif sebelum keluar", "Pindah segmen", "Klinik perusahaan",
+                                              "PHK berulang", "Biaya rawat saat nonaktif", "Tanggungan PHK"],
+                                 "Rp": [f_.rp_headcount * lookback, f_.rp_wage2c * lookback, f_.rp_wage_peer * lookback,
+                                        f_.rp_arrears * lookback, f_.rp_lag * lookback, f_.rp_onoff * lookback,
+                                        f_.rp_group_move * lookback, f_.rp_clinic * lookback, f_.rp_phk_gap * lookback,
+                                        f_.rp_care_liability, f_.rp_phk_cover]})
+            comp = comp[comp.Rp > 0]
+            if len(comp):
+                st.altair_chart(alt.Chart(comp).mark_bar(color="#087f82", cornerRadiusEnd=4, height=20).encode(
+                    x=alt.X("Rp:Q", title="Rp (12 bulan)", axis=alt.Axis(format="~s")),
+                    y=alt.Y("Komponen:N", sort="-x", title=None),
+                    tooltip=["Komponen", alt.Tooltip("Rp:Q", format=",.0f")]).properties(height=max(130, len(comp) * 32)).configure(**CHART_CONFIG),
+                    theme=None, width="stretch")
+            else:
+                st.caption("Tidak ada komponen Rp yang teridentifikasi.")
+        with st.container(border=True):
+            bill = obs["billing"][obs["billing"].employer_id == eid].copy()
+            bill["Bulan"] = bill.month.map(month_label)
+            bill["Badan"] = bill.agency.map({"KS": "BPJS Kesehatan", "TK": "BPJS Ketenagakerjaan"})
+            bill["Terlambat (hari)"] = bill.days_late
+            bill["Kurang bayar"] = (bill.billed_rp - bill.paid_rp).clip(lower=0)
+            st.subheader("Pembayaran iuran 24 bulan")
+            st.altair_chart(alt.Chart(bill).mark_line(point=True, strokeWidth=2.5).encode(
+                x=alt.X("month:Q", title="Bulan ke- (0 = Okt 2024)", axis=alt.Axis(tickCount=6)),
+                y=alt.Y("Terlambat (hari):Q", title="Hari keterlambatan"),
+                color=alt.Color("Badan:N", scale=alt.Scale(range=["#087f82", "#d48b4a"]), legend=alt.Legend(orient="bottom", title=None)),
+                tooltip=["Bulan", "Badan", "Terlambat (hari)", alt.Tooltip("Kurang bayar:Q", format=",.0f")]).properties(height=210).configure(**CHART_CONFIG),
+                theme=None, width="stretch")
+    with st.expander("Kunci jawaban — khusus demo sintetis"):
+        st.caption("Tidak tersedia bagi petugas di dunia nyata. Tidak dipakai untuk menentukan peringkat.")
+        t = load_truth(branch).loc[eid]
         st.write({"melanggar": bool(t.is_violator), "varian yang ditanam": t.variants or "-",
                   "look-alike jujur": t.lookalikes or "-", "Rp dapat dipulihkan (sebenarnya)": rp(t.recoverable_rp_true)})
 
-# --------------------------------------------------------------------------- 3. benchmark
-
-with tab_bench:
-    res = load_results()
-    rb = res["branches"][branch]
-    st.subheader(f"Cabang {branch}: anggaran {rb['budget_hours']:.0f} jam (≈10% total jam), "
-                 f"{rb['violators']} pelanggar dari {rb['employers']} perusahaan ({rb['prevalence']:.0%})")
+# 3. Benchmark ---------------------------------------------------------------
+if view == "Benchmark":
+    rb = load_results()["branches"][branch]
+    final = rb.get("final_ranking", "tepat_v2_1")
+    best = rb["rankings"][final]
+    baseline = rb["rankings"]["rules_only"]
     if branch == "A":
-        st.warning("Cabang A dipakai untuk tuning. Angka utama selalu dari cabang B atau C.")
+        st.warning("Cabang A dipakai untuk tuning. Angka utama harus berasal dari cabang B atau C.")
+    st.warning("Hasil metode pada data sintetis, satu seed. Bukan bukti dampak operasional BPJS atau estimasi nasional.")
+    with st.container(key="summary"):
+        a, b, c, d = st.columns(4)
+        a.metric("Rp per jam pemeriksaan", jt(best["rp_per_hour"]))
+        b.metric("Presisi pemeriksaan", f"{best['precision']:.0%}")
+        c.metric("Perusahaan jujur ditandai", f"{best['honest_flag_rate']:.1%}")
+        d.metric("Dibanding aturan saja", f"{best['rp_per_hour'] / max(1, baseline['rp_per_hour']):.2f}×", help="Perbandingan Rp per jam, bukan dampak nasional.")
+    st.caption(f"Cabang {branch}: {rb['employers']:,} perusahaan; {rb['violators']} pelanggar ditanam ({rb['prevalence']:.0%}); "
+               f"anggaran {rb['budget_hours']:.0f} jam, sekitar 10% total jam.")
     rows = []
     for k, v in rb["rankings"].items():
         rows.append(dict(Peringkat=RANK_LABEL.get(k, k), key=k, rp_per_jam=v["rp_per_hour"] / 1e6, presisi=v["precision"],
-                         recall=v["recall"], jujur_ditandai=v["honest_flag_rate"], diperiksa=v["inspected"],
-                         rp_total=v["rp_recovered"] / 1e6))
+                         recall=v["recall"], jujur_ditandai=v["honest_flag_rate"], diperiksa=v["inspected"], rp_total=v["rp_recovered"] / 1e6))
     B = pd.DataFrame(rows)
-    B["kelompok"] = np.where(B.key.str.startswith("tepat"), "TEPAT", "Pembanding")
-    x1, x2 = st.columns(2)
-    x1.altair_chart(alt.Chart(B).mark_bar().encode(
-        x=alt.X("rp_per_jam:Q", title="Rp (juta) dipulihkan per jam pemeriksaan"),
-        y=alt.Y("Peringkat:N", sort="-x", title=None), color=alt.Color("kelompok:N", legend=None),
-        tooltip=["Peringkat", alt.Tooltip("rp_per_jam:Q", format=".2f"), "diperiksa"]).properties(title="Rp per jam"),
-        width="stretch")
-    x2.altair_chart(alt.Chart(B).mark_bar().encode(
-        x=alt.X("presisi:Q", title="Presisi (bagian yang diperiksa memang melanggar)", axis=alt.Axis(format="%")),
-        y=alt.Y("Peringkat:N", sort="-x", title=None), color=alt.Color("kelompok:N", legend=None),
-        tooltip=["Peringkat", alt.Tooltip("presisi:Q", format=".0%")]).properties(title="Presisi"),
-        width="stretch")
-    st.dataframe(B.drop(columns=["key", "kelompok"]).style.format(
-        {"rp_per_jam": "{:.2f}", "presisi": "{:.0%}", "recall": "{:.0%}", "jujur_ditandai": "{:.1%}",
-         "diperiksa": "{:.0f}", "rp_total": "{:,.0f}"}), width="stretch", hide_index=True)
-    final = rb.get("final_ranking", "tepat_v2_1")
-    y1, y2 = st.columns(2)
-    with y1:
-        st.markdown("**Recall per varian pelanggaran** (di mana TEPAT masih lemah)")
-        rv = pd.DataFrame({"Aturan saja": rb["rankings"]["rules_only"]["recall_by_variant"],
-                           "TEPAT": rb["rankings"][final]["recall_by_variant"]})
-        st.dataframe(rv.style.format("{:.0%}"), width="stretch")
-    with y2:
-        st.markdown("**Look-alike jujur yang ikut ditandai** (lebih rendah lebih baik)")
-        lv = pd.DataFrame({"Aturan saja": rb["rankings"]["rules_only"]["lookalike_flag_rate"],
-                           "TEPAT": rb["rankings"][final]["lookalike_flag_rate"]})
-        st.dataframe(lv.style.format("{:.0%}"), width="stretch")
-    cov = rb.get("rp_range_coverage")
-    if cov is not None:
-        st.caption(f"Kalibrasi rentang Rp: {cov:.0%} pelanggar yang terpilih punya Rp sebenarnya di dalam rentang yang dinyatakan "
-                   "(target ≈80%, persentil 10–90).")
-    st.markdown("#### Contoh: tidak ditandai, dan memang benar")
+    B["kelompok"] = np.where(B.key == final, "TEPAT utama", np.where(B.key.str.startswith("tepat"), "TEPAT lainnya", "Pembanding"))
+    colors = alt.Color("kelompok:N", scale=alt.Scale(domain=["TEPAT utama", "TEPAT lainnya", "Pembanding"],
+                                                     range=["#087f82", "#72aaa9", "#a6b7bd"]), legend=None)
+    x1, x2 = st.columns(2, gap="large")
+    with x1, st.container(border=True):
+        st.subheader("Rupiah per jam")
+        st.altair_chart(alt.Chart(B).mark_bar(cornerRadiusEnd=4, height=23).encode(
+            x=alt.X("rp_per_jam:Q", title="Rp juta / jam pemeriksaan"), y=alt.Y("Peringkat:N", sort="-x", title=None), color=colors,
+            tooltip=["Peringkat", alt.Tooltip("rp_per_jam:Q", format=".2f"), "diperiksa"]).properties(height=275).configure(**CHART_CONFIG),
+            theme=None, width="stretch")
+    with x2, st.container(border=True):
+        st.subheader("Presisi pemeriksaan")
+        st.altair_chart(alt.Chart(B).mark_bar(cornerRadiusEnd=4, height=23).encode(
+            x=alt.X("presisi:Q", title="Bagian yang diperiksa memang melanggar", axis=alt.Axis(format="%"), scale=alt.Scale(domain=[0, 1])),
+            y=alt.Y("Peringkat:N", sort="-x", title=None), color=colors,
+            tooltip=["Peringkat", alt.Tooltip("presisi:Q", format=".0%")]).properties(height=275).configure(**CHART_CONFIG),
+            theme=None, width="stretch")
+    st.subheader("Hasil lengkap")
+    table = B.drop(columns=["key", "kelompok"]).rename(columns={"Peringkat": "Metode", "rp_per_jam": "Rp jt/jam",
+        "presisi": "Presisi", "recall": "Recall", "jujur_ditandai": "Jujur ditandai", "diperiksa": "Diperiksa", "rp_total": "Rp jt total"})
+    st.dataframe(table.style.format({"Rp jt/jam": "{:.2f}", "Presisi": "{:.0%}", "Recall": "{:.0%}", "Jujur ditandai": "{:.1%}",
+                                     "Diperiksa": "{:.0f}", "Rp jt total": "{:,.0f}"}), width="stretch", hide_index=True)
+    with st.expander("Di mana model masih lemah? Recall dan look-alike"):
+        y1, y2 = st.columns(2, gap="large")
+        with y1:
+            st.subheader("Recall per varian pelanggaran")
+            rv = pd.DataFrame({"Aturan saja": baseline["recall_by_variant"], "TEPAT": best["recall_by_variant"]})
+            st.dataframe(rv.style.format("{:.0%}"), width="stretch")
+        with y2:
+            st.subheader("Look-alike jujur yang ditandai")
+            lv = pd.DataFrame({"Aturan saja": baseline["lookalike_flag_rate"], "TEPAT": best["lookalike_flag_rate"]})
+            st.dataframe(lv.style.format("{:.0%}"), width="stretch")
+        cov = rb.get("rp_range_coverage")
+        if cov is not None:
+            st.caption(f"Kalibrasi rentang Rp: {cov:.0%} pelanggar terpilih berada dalam rentang prediksi. Target sekitar 80% (persentil 10–90).")
     T = load_truth(branch)
     rules = scorer.rules_only(F)
     honest = T[~T.is_violator & T.lookalikes.str.contains("C1")].index
     ex = [e for e in rules.index[:200] if e in honest]
     if ex:
         e = ex[0]
-        st.success(f"**{reg.at[e, 'name']}** (konstruksi): aturan sederhana menandainya (TK > Kes karena pekerja proyek), "
-                   f"peringkat aturan #{list(rules.index).index(e) + 1}. TEPAT mengenali program `project` di data TK dan "
-                   f"menempatkannya di #{int(ranked.at[e, 'rank'])}. Kunci jawaban: jujur (look-alike C1).")
-    st.error("**Batasan yang jujur:** angka ini hasil metode pada data **sintetis** dengan asumsi yang dilaporkan sebagai "
-             "rentang (prevalensi, jam pemeriksaan, masa tagih). Satu seed. Perusahaan yang **tidak pernah mendaftar** "
-             "sama sekali tidak terlihat oleh TEPAT. Tingkat kematangan: prototipe.")
+        st.success(f"**Contoh perusahaan jujur: {reg.at[e, 'name']}**. Aturan sederhana menandainya di peringkat "
+                   f"#{list(rules.index).index(e) + 1} karena TK > Kes. TEPAT mengenali pekerja proyek (`project`) "
+                   f"dan menempatkannya di #{int(ranked.at[e, 'rank'])}. Kunci jawaban sintetis: jujur, look-alike C1.")
+    st.caption("Batasan: perusahaan yang tidak pernah mendaftar sama sekali tidak terlihat. Prevalensi, jam pemeriksaan, dan masa tagih "
+               "merupakan asumsi simulasi. Satu seed, belum ada interval lintas-seed. Tingkat kematangan: prototipe.")
 
-# --------------------------------------------------------------------------- 4. fairness / random arm
-
-with tab_fair:
+# 4. Fairness ----------------------------------------------------------------
+if view == "Keadilan & jalur acak":
     rb = load_results()["branches"][branch]
     arm = rb["rankings"].get(f"{rb.get('final_ranking', 'tepat_v2_1')}_with_random_arm", {})
-    st.subheader("Apakah TEPAT memeriksa kelompok tertentu secara berlebihan?")
-    st.markdown(f"**Jalur acak 8%:** {arm.get('random_arm_size', 0)} perusahaan dipilih acak berstrata (sektor × skala). "
-                f"Tingkat pelanggaran di jalur acak: **{arm.get('random_arm_violation_rate', 0):.0%}**. Angka ini adalah "
-                "perkiraan tak bias prevalensi sebenarnya. Jalur ini juga memberi data latih baru yang tidak bias seleksi.")
+    with st.container(key="summary"):
+        a, b, c = st.columns(3)
+        a.metric("Anggaran jalur acak", "8%")
+        b.metric("Perusahaan sampel acak", f"{arm.get('random_arm_size', 0)}")
+        c.metric("Pelanggaran di sampel acak", f"{arm.get('random_arm_violation_rate', 0):.0%}")
+    st.info("Jalur acak berstrata menurut sektor dan skala memberi kesempatan pemeriksaan di luar daftar berisiko tinggi. "
+            "Sampel kecil ini membantu memantau bias seleksi; bukan angka prevalensi nasional.")
     fr = pd.DataFrame(rb.get("fairness", []))
     if len(fr):
         for grp, title in (("sector", "Sektor"), ("band_obs", "Skala usaha")):
-            g = fr[fr.group == grp].copy().rename(columns={"value": "grp"})
-            if grp == "sector":
-                g["grp"] = g.grp.map(SEKTOR)
-            m = g.melt(id_vars=["grp"], value_vars=["violation_rate", "pick_rate", "honest_flag_rate"], value_name="rate")
-            m["variable"] = m.variable.map({"violation_rate": "Tingkat pelanggaran (sebenarnya)",
-                                            "pick_rate": "Tingkat dipilih TEPAT",
-                                            "honest_flag_rate": "Perusahaan jujur ikut terpilih"})
-            st.altair_chart(alt.Chart(m).mark_bar().encode(
-                x=alt.X("grp:N", title=title), xOffset="variable:N", y=alt.Y("rate:Q", axis=alt.Axis(format="%"), title=None),
-                color=alt.Color("variable:N", legend=alt.Legend(orient="bottom", title=None)),
-                tooltip=["grp", "variable", alt.Tooltip("rate:Q", format=".1%")]).properties(height=260, title=title),
-                width="stretch")
-    st.caption("Skala usaha mikro & kecil: upah di bawah UMK bukan pelanggaran (Perpres 59/2024 Ps. 32(4), E05c), jadi aturan itu "
-               "hanya berlaku untuk usaha menengah & besar.")
+            with st.container(border=True):
+                st.subheader(f"Pola pemeriksaan menurut {title.lower()}")
+                g = fr[fr.group == grp].copy().rename(columns={"value": "grp"})
+                if grp == "sector":
+                    g["grp"] = g.grp.map(SEKTOR)
+                m = g.melt(id_vars=["grp"], value_vars=["violation_rate", "pick_rate", "honest_flag_rate"], value_name="rate")
+                m["variable"] = m.variable.map({"violation_rate": "Pelanggaran sebenarnya", "pick_rate": "Dipilih TEPAT", "honest_flag_rate": "Jujur ikut terpilih"})
+                st.altair_chart(alt.Chart(m).mark_bar(cornerRadiusEnd=3).encode(
+                    x=alt.X("grp:N", title=None, axis=alt.Axis(labelAngle=-25, labelLimit=145)), xOffset="variable:N",
+                    y=alt.Y("rate:Q", axis=alt.Axis(format="%"), title=None),
+                    color=alt.Color("variable:N", scale=alt.Scale(domain=["Pelanggaran sebenarnya", "Dipilih TEPAT", "Jujur ikut terpilih"],
+                                                                range=["#98aeb5", "#087f82", "#d48b4a"]), legend=alt.Legend(orient="bottom", title=None)),
+                    tooltip=["grp", "variable", alt.Tooltip("rate:Q", format=".1%")]).properties(height=260).configure(**CHART_CONFIG),
+                    theme=None, width="stretch")
+    st.caption("Skala mikro & kecil: upah di bawah UMK bukan pelanggaran (Perpres 59/2024 Ps. 32(4), E05c). Aturan itu hanya berlaku "
+               "untuk usaha menengah & besar. Label pelanggaran sebenarnya hanya digunakan pada evaluasi sintetis ini.")
 
-# --------------------------------------------------------------------------- 5. worker self-check (D-011: B + C)
-
-with tab_worker:
-    st.subheader("Cek Kepesertaan Saya")
-    st.caption("Untuk pekerja: apakah pemberi kerja sudah mendaftarkan dan membayar iuran BPJS Kesehatan Anda? "
+if view == "Cek kepesertaan saya":
+    st.info("Untuk pekerja: apakah pemberi kerja sudah mendaftarkan dan membayar iuran BPJS Kesehatan Anda? "
                "Di dunia nyata fitur ini berada di Mobile JKN; di sini memakai data sintetis.")
     ks, tk, bill, mem = obs["ks_membership"], obs["tk_exchange"], obs["billing"], obs["ks_members"]
 
@@ -330,7 +419,7 @@ with tab_worker:
         return out
 
     demos = demo_niks(branch)
-    pick = st.radio("Contoh NIK sintetis", list(demos), horizontal=True)
+    pick = st.radio("Contoh NIK sintetis", list(demos), horizontal=False, key="worker_scenario")
     nik = st.text_input("NIK (16 digit)", value=demos.get(pick, ""), max_chars=16)
     if nik:
         my_ks = ks[ks.nik == nik].sort_values("ppu_start")
@@ -338,7 +427,8 @@ with tab_worker:
         my_dep = mem[(mem.nik == nik) & (mem.segment == "DEPENDENT")]
         active = my_ks[my_ks.ppu_end.isna() | (my_ks.ppu_end > D)]
         alerts = []
-        k1, k2, k3, k4 = st.columns(4)
+        with st.container(key="summary"):
+            k1, k2, k3, k4 = st.columns(4)
         if len(active):
             s = active.iloc[-1]
             emp = s.employer_id
@@ -375,11 +465,14 @@ with tab_worker:
         if not alerts and len(active):
             st.success("Semua beres: Anda terdaftar dan iuran 3 bulan terakhir sudah dibayar.")
         for i, (emp, jenis, text) in enumerate(alerts):
-            st.error("⚠️ " + text)
-            if st.button("📣 Laporkan ke BPJS Kesehatan", key=f"lapor_{nik}_{i}"):
+            st.error(text)
+            if st.button("Kirim laporan demo", key=f"lapor_{nik}_{i}", type="primary"):
                 tiket = add_tip(nik, emp, jenis)
-                st.success(f"Laporan diterima. Nomor tiket **{tiket}**. Identitas Anda dilindungi (NIK disimpan sebagai hash); "
-                           "laporan ini tampil di halaman kasus perusahaan tersebut untuk petugas pemeriksa.")
+                st.success(f"Laporan demo tersimpan. Nomor tiket **{tiket}**. NIK mentah tidak disimpan dalam tiket; hanya hash. "
+                           "Laporan muncul di halaman kasus perusahaan untuk demo petugas. Tidak dikirim ke BPJS.")
         if len(my_ks) == 0 and len(my_tk) == 0 and len(my_dep) == 0:
-            st.info("NIK tidak ditemukan di data sintetis.")
+            st.info("NIK tidak ditemukan. Pilih skenario demo untuk mencoba data yang tersedia.")
     st.caption("Dalam proposal: notifikasi proaktif lewat Mobile JKN dan alur triase laporan (slide), bukan bagian prototipe.")
+
+st.markdown('<footer class="app-footer"><span>TEPAT / Tim Johannes Kepler / Healthkathon 2026</span>'
+            '<span>Data sintetis. Keputusan pemeriksaan tetap pada petugas.</span></footer>', unsafe_allow_html=True)

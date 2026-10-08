@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T00:29:56+07:00",
+  "title": "Design System: TEPAT",
+  "extensions": {
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "160ms ease",
+        "purpose": "Background and border feedback only; disabled for reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-desktop",
+        "value": "1100px"
+      },
+      {
+        "name": "mobile",
+        "value": "760px"
+      }
+    ],
+    "shadows": []
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "A named action in the current workspace.",
+      "html": "<button class=\"ds-primary\">Buka kasus</button>",
+      "css": ".ds-primary{background:#087f82;color:#fff;border:1px solid #087f82;border-radius:8px;min-height:44px;font-family:Public Sans,Segoe UI,sans-serif;font-weight:650;padding:0.5rem 1rem;transition:background-color 160ms ease,border-color 160ms ease}.ds-primary:hover{background:#06696c;border-color:#06696c}.ds-primary:focus-visible{outline:3px solid #087f82;outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "NIK input",
+      "kind": "input",
+      "description": "Native text-field treatment; use synthetic identifiers in the demo.",
+      "html": "<label class=\"ds-field-label\">NIK (16 digit)<input class=\"ds-field\" maxlength=\"16\" placeholder=\"NIK sintetis\"></label>",
+      "css": ".ds-field-label{color:#587078;font:650 0.82rem Public Sans,Segoe UI,sans-serif}.ds-field{display:block;box-sizing:border-box;width:100%;min-height:44px;margin-top:0.5rem;padding:0.5rem 0.75rem;background:#e8f0ef;border:1px solid #dce6e7;border-radius:8px;color:#153e43;caret-color:#087f82;font:1rem Public Sans,Segoe UI,sans-serif}.ds-field:focus-visible{outline:3px solid #087f82;outline-offset:3px}"
+    },
+    {
+      "name": "Selected navigation",
+      "kind": "nav",
+      "refersTo": "navigation-selected",
+      "description": "Current view on the petrol rail.",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-selected\" aria-current=\"page\">Daftar prioritas</button></nav>",
+      "css": ".ds-nav{background:#123b40;padding:1rem}.ds-nav-selected{width:100%;min-height:44px;text-align:left;background:#b7e9df;color:#133e41;border:1px solid transparent;border-radius:7px;padding:0.73rem 0.8rem;font:740 0.85rem Public Sans,Segoe UI,sans-serif}.ds-nav-selected:focus-visible{outline:2px solid #b7e9df;outline-offset:2px}"
+    },
+    {
+      "name": "Synthetic-data pill",
+      "kind": "chip",
+      "description": "A disclosure, not a live-service badge.",
+      "html": "<span class=\"ds-pill\">Data sintetis</span>",
+      "css": ".ds-pill{display:inline-flex;padding:0.3rem 0.65rem;border:1px solid #c1e4dc;border-radius:100px;background:#d8efe9;color:#1b6261;font:650 0.73rem Public Sans,Segoe UI,sans-serif}"
+    },
+    {
+      "name": "Summary cell",
+      "kind": "card",
+      "refersTo": "metric",
+      "description": "Quiet label/value cell; emphasize only the first summary cell.",
+      "html": "<div class=\"ds-metric\"><span class=\"ds-metric-label\">Perkiraan pemulihan</span><strong class=\"ds-metric-value\">Rp / jam</strong></div>",
+      "css": ".ds-metric{background:#fff;border:1px solid #dce6e7;border-radius:10px;padding:1rem 1.1rem;color:#153e43;min-height:116px;box-sizing:border-box;font-family:Public Sans,Segoe UI,sans-serif}.ds-metric-label{font-size:0.77rem;font-weight:600;white-space:normal}.ds-metric-value{display:block;font-size:1.7rem;font-weight:750;letter-spacing:-0.025em;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Evidence row",
+      "kind": "custom",
+      "description": "Reason followed by its legal basis.",
+      "html": "<div class=\"ds-signal\"><strong>Sinyal untuk ditinjau petugas</strong><small>Dasar hukum yang terkait</small></div>",
+      "css": ".ds-signal{padding:0.9rem 0;border-bottom:1px solid #e3ebeb;font-family:Public Sans,Segoe UI,sans-serif}.ds-signal strong{font-weight:650;color:#153e43;font-size:0.9rem;line-height:1.55}.ds-signal small{display:block;color:#587078;font-size:0.76rem;line-height:1.6;margin-top:0.35rem}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Daylit inspection desk",
+    "overview": "The implemented system is a clear office workspace, not a promotional landing page. A deep petrol rail anchors navigation; pale surfaces keep evidence readable; teal marks selection and the primary action. Typography and data hierarchy carry the identity rather than emoji or decorative animation.",
+    "keyCharacteristics": [
+      "Public Sans with tabular numerals for money and ranks.",
+      "Left-aligned evidence, compact controls, flat surfaces.",
+      "A single high-emphasis summary cell; other metrics remain quiet.",
+      "Native Streamlit controls with visible interaction states."
+    ],
+    "rules": [
+      {
+        "name": "The Evidence Rule",
+        "body": "Color distinguishes state and comparison; labels carry the meaning. Do not make the user infer compliance from color alone.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do keep synthetic-data disclosure visible and human decisions explicit.",
+      "Do use sentence-case Indonesian labels and actions that name the result.",
+      "Do retain keyboard focus, native sidebar controls, and mobile wrapping.",
+      "Do use only short state transitions; remove them under reduced motion."
+    ],
+    "donts": [
+      "Don't replace the evidence workspace with a marketing hero or decorative feature grid.",
+      "Don't use emoji as navigation, status, or decoration.",
+      "Don't hide Streamlit's entire toolbar: it also contains mobile sidebar access.",
+      "Don't change scoring, legal meaning, or benchmark claims as a styling task."
+    ]
+  }
+}

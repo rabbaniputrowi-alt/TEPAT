@@ -6,3 +6,4 @@ data/
 results/_quick/
 results/*.parquet
 results/tips.csv
+.impeccable/review/

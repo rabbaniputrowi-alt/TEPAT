@@ -1,0 +1,29 @@
+[project]
+name = "tepat"
+version = "0.1.0"
+description = "TEPAT: Pemeriksaan Kepatuhan Tepat Sasaran (Healthkathon 2026 prototype, synthetic data)"
+authors = [
+    { name = "Rabbani Putrowi", email = "rabbaniputrowi@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "altair>=6.3.0",
+    "numpy>=2.4.6",
+    "pandas>=3.0.6",
+    "pyyaml>=6.0.3",
+    "rapidfuzz>=3.14.6",
+    "scikit-learn>=1.9.1",
+    "streamlit>=1.65.0",
+]
+
+[project.scripts]
+tepat = "tepat.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

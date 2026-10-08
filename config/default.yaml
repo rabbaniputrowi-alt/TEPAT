@@ -1,0 +1,103 @@
+# TEPAT synthetic benchmark configuration.
+# Every number below is either a legal rule (see src/tepat/rules.py) or an ASSUMPTION ("dial").
+# Assumptions are marked; the proposal reports results across their ranges.
+
+seed: 20261007
+n_employers: 1500            # E20 (1,092 businesses) / E21 (1,544 inspected) order of magnitude
+
+# PLACEHOLDER kab/kota and UMK values: fictional names, NOT real decrees. Replace with real
+# provincial UMK decrees before quoting any Rp figure as realistic (Synthetic Data Spec §9).
+kabkota:
+  - {name: "Kab. Arunika",  umk: {2024: 2300000, 2025: 2450000, 2026: 2600000}}
+  - {name: "Kab. Banyusari", umk: {2024: 2200000, 2025: 2340000, 2026: 2480000}}
+  - {name: "Kota Candrapura", umk: {2024: 2900000, 2025: 3080000, 2026: 3270000}}
+
+# ASSUMPTION: skewed-small size mix (replace with BPS figures if found). umkm = OSS business scale.
+size_bands:
+  - {name: "2-9",    lo: 2,   hi: 9,   share: 0.55, hours: 3,  umkm: micro}
+  - {name: "10-49",  lo: 10,  hi: 49,  share: 0.30, hours: 6,  umkm: small}
+  - {name: "50-249", lo: 50,  hi: 249, share: 0.11, hours: 12, umkm: medium}
+  - {name: "250+",   lo: 250, hi: 700, share: 0.04, hours: 24, umkm: large}
+
+# ASSUMPTION: wage multiplier over UMK ~ lognormal(mu, sigma); monthly turnover.
+sectors:
+  C: {label: "Manufaktur",        weight: 0.18, wage_mu: 0.25, wage_sigma: 0.30, turnover: 0.020}
+  F: {label: "Konstruksi",        weight: 0.10, wage_mu: 0.20, wage_sigma: 0.30, turnover: 0.040}
+  G: {label: "Perdagangan",       weight: 0.24, wage_mu: 0.10, wage_sigma: 0.25, turnover: 0.030}
+  H: {label: "Logistik",          weight: 0.08, wage_mu: 0.30, wage_sigma: 0.30, turnover: 0.025}
+  I: {label: "Akomodasi & Makan", weight: 0.14, wage_mu: 0.05, wage_sigma: 0.25, turnover: 0.040}
+  J: {label: "Informasi & Kom.",  weight: 0.04, wage_mu: 0.90, wage_sigma: 0.40, turnover: 0.020}
+  K: {label: "Keuangan",          weight: 0.04, wage_mu: 1.00, wage_sigma: 0.40, turnover: 0.015}
+  Q: {label: "Kesehatan",         weight: 0.06, wage_mu: 0.50, wage_sigma: 0.35, turnover: 0.020}
+  A: {label: "Pertanian",         weight: 0.12, wage_mu: 0.05, wage_sigma: 0.20, turnover: 0.030}
+
+violations:
+  prevalence: 0.20            # ASSUMPTION (no national compliance rate; sensitivity 5-35%)
+  second_mode_prob: 0.15
+  mode_shares: {"1": 0.33, "2": 0.30, "3": 0.15, "4": 0.05, "5": 0.17}
+  variant_shares:
+    "1": {"1a": 0.40, "1b": 0.20, "1c": 0.25, "1d": 0.15}
+    "2": {"2a": 0.40, "2b": 0.30, "2c": 0.30}
+    "3": {"3a": 0.25, "3b": 0.25, "3c": 0.50}
+    "4": {"4a": 0.60, "4b": 0.40}
+    "5": {"5a": 0.35, "5b": 0.20, "5c": 0.25, "5d": 0.20}
+  held_back: []
+
+# Honest look-alikes (labelled honest; a good ranking keeps them low). Rates are ASSUMPTIONS.
+lookalikes:
+  C1_construction_project: 0.60   # of honest sector-F employers
+  C2_umk_payer: 0.60              # of honest C/G/I employers
+  C3_seasonal_A: 0.30
+  C3_seasonal_other: 0.10
+  C4_layoff: 0.03
+  C5_fast_growth: 0.05
+  C7_newhire_ill: 0.03            # of on-time new hires at honest employers
+  C10_open_clinic_medium: 0.03
+  C10_open_clinic_large: 0.25
+  C11_distress: 0.02
+  C12_below_umk_micro: 0.25       # of honest micro employers in C/G/I/A
+  C12_below_umk_small: 0.10
+
+noise:
+  nik_typo: 0.005
+  name_variant: 0.03
+  tk_lag_share: 0.10
+  oss_sigma: 0.30
+  dependent_spouse_share: 0.40
+  dependent_self_employed: 0.08   # C8
+
+# ASSUMPTION (added 2026-10-08): everyday admin noise the v1 spec left out. Without it honest
+# employers are spotless and TEPAT scores ~100% precision, which no judge would believe.
+realism:
+  sloppy_payer_share: 0.25      # employers that often pay a few days late, always in full (look-alike C14)
+  sloppy_late_prob: 0.30        # share of their months paid 1-25 days late
+  slow_admin_share: 0.15        # employers registering new hires 5-40 days after start (look-alike C13)
+  admin_rereg_prob: 0.04        # contract workers whose KS spell breaks 10-45 days at renewal (any employer)
+  wage_desync_prob: 0.02        # workers whose raise reached the TK report before KS (TK wage +3-10%)
+
+care:                                # ASSUMPTION: no real JKN rates used
+  inpatient_monthly_base: 0.004
+  inpatient_age_slope: 0.00012
+  newjob_bump: 1.5
+  outpatient_monthly: 0.04
+  inpatient_cost_median: 6000000
+  inpatient_cost_sigma: 0.8
+  outpatient_cost: 150000
+
+tk_rate: 0.10                        # ASSUMPTION: approx JHT+JP+JKK+JKM; only timing matters
+
+inspection:
+  lookback_months: 12                # ASSUMPTION (sourced range 6-24, E55)
+  budget_frac: 0.10                  # hours to inspect ~10% of the branch's total inspection hours
+  random_arm_frac: 0.08              # I-56
+  training_sample_frac: 0.40         # share of branch A with known past inspection outcomes
+
+# Benchmark protocol (Synthetic Data Spec §7): A tune, B test, C shifted test.
+branches:
+  A: {seed_offset: 1, held_back: ["2b", "1c", "1d"]}
+  B: {seed_offset: 2, held_back: ["2b", "1c", "1d"]}
+  C:
+    seed_offset: 3
+    held_back: []
+    sector_weights: {C: 0.28, F: 0.16, G: 0.16, H: 0.10, I: 0.08, J: 0.03, K: 0.03, Q: 0.04, A: 0.12}
+    lookalike_scale: 1.5

@@ -5,3 +5,4 @@ data/
 .pytest_cache/
 results/_quick/
 results/*.parquet
+results/tips.csv

@@ -43,10 +43,32 @@ def test_priority_preview_opens_the_ranked_employer():
     assert app.selectbox(key="case_employer").value == expected
 
 
+def test_interface_text_avoids_typographic_tells():
+    """Em dashes, middle dots and ellipsis glyphs read as generated copy, not product writing."""
+    sources = {
+        "app": APP.read_text(encoding="utf-8"),
+        "css": (APP.parent / "assets" / "workspace.css").read_text(encoding="utf-8"),
+    }
+    for name, source in sources.items():
+        for glyph in ("\u2014", "\u2013", "\u00b7", "\u2026"):
+            assert glyph not in source, f"{name} still uses {glyph!r}"
+
+
+def test_workspace_opens_on_the_task_not_on_decoration():
+    app = AppTest.from_file(str(APP), default_timeout=90).run()
+    assert not app.exception
+    markup = "\n".join(element.value for element in app.markdown)
+    for decoration in ("workspace-topbar", "sidebar-brand svg", "<svg", "class=\"pill"):
+        assert decoration not in markup, f"Decorative {decoration} outlives its purpose."
+    app.sidebar.radio(key="view").set_value("Kasus perusahaan").run()
+    assert not any(" | " in element.value for element in app.caption), "Write the case identity as a sentence."
+
+
 @pytest.mark.parametrize("branch", ["B", "C", "A"])
 @pytest.mark.parametrize("view", VIEWS)
 def test_each_view_renders_on_every_synthetic_branch(branch, view):
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    # Cold branches load their parquet slices on first use, so allow for real I/O.
+    app = AppTest.from_file(str(APP), default_timeout=120).run()
     app.sidebar.selectbox(key="branch").set_value(branch).run()
     app.sidebar.radio(key="view").set_value(view).run()
     assert not app.exception

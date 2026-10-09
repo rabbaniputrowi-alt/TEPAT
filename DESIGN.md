@@ -49,7 +49,6 @@ rounded:
   control: "8px"
   table: "9px"
   container: "10px"
-  pill: "100px"
 spacing:
   compact: "0.5rem"
   group: "1rem"
@@ -78,10 +77,10 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.container}"
     padding: "1rem 1.1rem"
-  metric-emphasis:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.paper}"
-    rounded: "{rounded.container}"
+  summary-strip:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
   caption:
     textColor: "{colors.muted}"
   divider:
@@ -103,7 +102,7 @@ The implemented system is a clear office workspace, not a promotional landing pa
 **Key Characteristics:**
 - Public Sans with tabular numerals for money and ranks.
 - Left-aligned evidence, compact controls, flat surfaces.
-- A single high-emphasis summary cell; other metrics remain quiet.
+- One summary strip of equal-weight figures; the data ranks itself.
 - Native Streamlit controls with visible interaction states.
 
 This document records the shipped implementation. `app/assets/workspace.css`, `.streamlit/config.toml`, and chart settings in `app/streamlit_app.py` remain the executable sources. Surface-specific composition lives in `.impeccable/surfaces/workspace.md`.
@@ -112,7 +111,7 @@ This document records the shipped implementation. `app/assets/workspace.css`, `.
 
 ## Colors
 
-Primary teal is used for buttons, selected data, and the first summary cell. Petrol is reserved for navigation. Canvas, paper, border, ink, and muted text form the reading surface. Pale mint indicates selected navigation and synthetic-data status. Amber separates secondary chart series; it is not an extra brand accent.
+Primary teal is used for buttons, selected navigation, and data marks. Petrol is reserved for the navigation rail. Canvas, paper, border, ink, and muted text form the reading surface. Pale mint indicates the selected view. Amber separates secondary chart series; it is not an extra brand accent.
 
 **The Evidence Rule.** Color distinguishes state and comparison; labels carry the meaning. Do not make the user infer compliance from color alone.
 
@@ -134,7 +133,7 @@ Surfaces are flat: border, spacing, and tonal separation convey structure. The s
 
 ## Shapes
 
-Containers and tables have gently curved corners; compact controls are slightly tighter. Status pills use a fully rounded silhouette. The small authored focus-target SVG is the only brand mark; Material icons provide native browser/app affordances.
+Containers and tables have gently curved corners; compact controls are slightly tighter. There is no logo mark and no badge shapes: the wordmark is set type, and status is written as a sentence where it matters.
 
 ## Components
 
@@ -144,7 +143,7 @@ Plain Indonesian labels on the petrol rail. Mint fill and stronger type identify
 
 ### Summary
 
-White metric cells with border and compact padding. Only the first cell receives solid teal. On mobile, two columns preserve scanability; labels wrap and values remain legible.
+One white strip divided by hairline rules, each figure carrying equal weight. On mobile the strip stacks and the rules turn horizontal; labels wrap rather than truncate.
 
 ### Buttons and fields
 
@@ -168,6 +167,9 @@ Reasons use simple separated rows with a legal-basis line, not icon tiles. Docum
 
 ### Don't
 - Don't replace the evidence workspace with a marketing hero or decorative feature grid.
+- Don't put an eyebrow label above a heading, or a row of status badges beside it. The heading and the sidebar already say where the user is.
+- Don't promote one figure with a filled accent block unless it is genuinely the decision; equal cells let the numbers speak.
 - Don't use emoji as navigation, status, or decoration.
+- Don't write em dashes, middle dots or ellipsis glyphs in interface copy. Use plain sentences, `s.d.` for ranges, and parentheses for asides.
 - Don't hide Streamlit's entire toolbar: it also contains mobile sidebar access.
 - Don't change scoring, legal meaning, or benchmark claims as a styling task.

@@ -35,7 +35,7 @@ RANK_LABEL = {"random": "Acak", "biggest_first": "Terbesar dulu", "rules_only": 
               "tepat_v1": "TEPAT v1", "tepat_v2": "TEPAT v2", "tepat_v2_1": "TEPAT v2.1",
               "tepat_v2_1_with_random_arm": "TEPAT v2.1 + jalur acak 8%"}
 
-st.set_page_config(page_title="TEPAT · Pemeriksaan Kepatuhan Tepat Sasaran", page_icon=":material/center_focus_strong:", layout="wide")
+st.set_page_config(page_title="TEPAT Pemeriksaan Kepatuhan", page_icon=":material/center_focus_strong:", layout="wide")
 
 
 # --------------------------------------------------------------------------- helpers
@@ -61,7 +61,7 @@ def day_label(d: float | None) -> str:
     return f"{d % 30 + 1} {month_label(d // 30)}"
 
 
-@st.cache_data(show_spinner="Memuat data sintetis…")
+@st.cache_data(show_spinner="Memuat data sintetis")
 def load(branch: str):
     obs = scorer.load_observed(DATA / branch)
     ranked = pd.read_parquet(RESULTS / f"ranked_{branch}.parquet")
@@ -128,14 +128,10 @@ CHART_CONFIG = {
 }
 
 # Persistent workspace shell -------------------------------------------------
-st.sidebar.markdown('<div class="sidebar-brand"><svg width="35" height="35" viewBox="0 0 35 35" aria-hidden="true">'
-                    '<path d="M13 3H3v10M22 3h10v10M3 22v10h10M32 22v10H22" fill="none" stroke="#b7e9df" '
-                    'stroke-width="3.5" stroke-linecap="round"/><circle cx="17.5" cy="17.5" r="4" fill="#b7e9df"/>'
-                    '</svg><strong>TEPAT</strong></div>'
-                    '<div class="sidebar-description">Pemeriksaan kepatuhan<br>tepat sasaran.</div>', unsafe_allow_html=True)
+st.sidebar.markdown('<div class="sidebar-brand">TEPAT</div>', unsafe_allow_html=True)
 view = st.sidebar.radio("Ruang kerja", VIEWS, key="view", label_visibility="collapsed")
 branch = st.sidebar.selectbox("Cabang data sintetis", ["B", "C", "A"], key="branch",
-                              format_func=lambda b: {"A": "A — tuning", "B": "B — uji tertahan", "C": "C — uji bergeser"}[b])
+                              format_func=lambda b: {"A": "A (tuning)", "B": "B (uji tertahan)", "C": "C (uji bergeser)"}[b])
 try:
     obs, ranked, F, reg = load(branch)
 except FileNotFoundError:
@@ -145,13 +141,10 @@ except FileNotFoundError:
 lookback = 12
 D = R.SCORING_DAY
 st.sidebar.markdown(f'<div class="sidebar-context"><b>{len(reg):,}</b> perusahaan sintetis<br>'
-                    f'{month_label(0)} – {month_label(R.HORIZON_MONTHS - 1)}<br>Model TEPAT v2.1</div>', unsafe_allow_html=True)
+                    f'{month_label(0)} s.d. {month_label(R.HORIZON_MONTHS - 1)}<br>Model TEPAT v2.1</div>', unsafe_allow_html=True)
 st.sidebar.markdown('<div class="sidebar-note"><strong>Bukan data BPJS asli</strong>'
                     'Perusahaan, pekerja, NIK, dan UMK fiktif. NIK demo diawali 99. Tidak terhubung ke layanan BPJS.</div>'
                     '<div class="sidebar-credit">Tim Johannes Kepler<br>Healthkathon 2026</div>', unsafe_allow_html=True)
-st.markdown(f'<div class="workspace-topbar"><span class="workspace-name">Ruang pemeriksaan</span>'
-            f'<div class="workspace-tags"><span class="pill">Cabang {escape(branch)}</span>'
-            '<span class="pill">Prototipe</span><span class="pill teal">Data sintetis</span></div></div>', unsafe_allow_html=True)
 st.title(view)
 st.caption(DESCRIPTIONS[view])
 
@@ -192,7 +185,7 @@ if view == "Daftar prioritas":
         "Peringkat": V["rank"], "Anggaran": V.anggaran, "Perusahaan": V["name"], "Sektor": V.sector.map(SEKTOR),
         "Kab/Kota": V.kabkota, "Skala": V.band_obs, "Tingkat": V.tier,
         "P(pelanggaran)": V.p_violation.round(2), "Perkiraan Rp": V.est_rp.map(jt),
-        "Rentang": [f"{jt(a)} – {jt(b)}" for a, b in zip(V.rp_low, V.rp_high)],
+        "Rentang": [f"{jt(a)} s.d. {jt(b)}" for a, b in zip(V.rp_low, V.rp_high)],
         "Rp/jam": (V.expected_rp / V.hours).map(jt), "Alasan utama": V.top_reasons.str.split(" \\| ").str[0],
         "Tindakan": V.action}, index=V.index)
     table_col, preview_col = st.columns([3, 1], gap="large")
@@ -208,9 +201,9 @@ if view == "Daftar prioritas":
             top_id = V.index[0]
             top = V.iloc[0]
             st.caption("Kasus teratas dari filter")
-            st.markdown(f'<span class="pill teal">#{int(top["rank"])} / {escape(top.tier)}</span>'
-                        f'<div class="case-preview-name">{escape(top["name"])}</div>'
-                        f'<div class="case-preview-detail">{escape(SEKTOR[top.sector])}<br>{escape(top.kabkota)}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="case-preview-name">{escape(top["name"])}</div>'
+                        f'<div class="case-preview-detail">Peringkat {int(top["rank"])}, tingkat {escape(top.tier.lower())}.<br>'
+                        f'{escape(SEKTOR[top.sector])} di {escape(top.kabkota)}.</div>', unsafe_allow_html=True)
             st.metric("P(pelanggaran)", f"{top.p_violation:.0%}")
             st.caption(top.action)
             st.button("Buka kasus", key="open_case", type="primary", width="stretch", on_click=open_case, args=(top_id,))
@@ -224,13 +217,13 @@ if view == "Kasus perusahaan":
     tips = read_tips()
     order = list(ranked.index)
     eid = st.selectbox("Pilih perusahaan", order, index=0, key="case_employer",
-                       format_func=lambda e: f"#{int(ranked.at[e, 'rank'])} — {reg.at[e, 'name']} ({e})")
+                       format_func=lambda e: f"{reg.at[e, 'name']} (peringkat {int(ranked.at[e, 'rank'])})")
     r, f_ = ranked.loc[eid], F.loc[eid]
     st.subheader(reg.at[eid, "name"])
-    st.caption(f"{SEKTOR[reg.at[eid, 'sector']]} | {reg.at[eid, 'kabkota']} | {eid}")
+    st.caption(f"{SEKTOR[reg.at[eid, 'sector']]} di {reg.at[eid, 'kabkota']}. Nomor pemberi kerja {eid}.")
     with st.container(key="summary"):
         a, b, c, d = st.columns(4)
-        a.metric("Perkiraan pemulihan", jt(r.est_rp), help=f"Rentang {jt(r.rp_low)} – {jt(r.rp_high)} (persentil 10–90 dari data latih)")
+        a.metric("Perkiraan pemulihan", jt(r.est_rp), help=f"Rentang {jt(r.rp_low)} s.d. {jt(r.rp_high)} (persentil 10-90 dari data latih)")
         b.metric("Peringkat", f"#{int(r['rank'])}")
         c.metric("P(pelanggaran)", f"{r.p_violation:.0%}")
         d.metric("Waktu pemeriksaan", f"{int(f_.hours)} jam")
@@ -285,7 +278,7 @@ if view == "Kasus perusahaan":
                 color=alt.Color("Badan:N", scale=alt.Scale(range=["#087f82", "#d48b4a"]), legend=alt.Legend(orient="bottom", title=None)),
                 tooltip=["Bulan", "Badan", "Terlambat (hari)", alt.Tooltip("Kurang bayar:Q", format=",.0f")]).properties(height=210).configure(**CHART_CONFIG),
                 theme=None, width="stretch")
-    with st.expander("Kunci jawaban — khusus demo sintetis"):
+    with st.expander("Kunci jawaban (khusus demo sintetis)"):
         st.caption("Tidak tersedia bagi petugas di dunia nyata. Tidak dipakai untuk menentukan peringkat.")
         t = load_truth(branch).loc[eid]
         st.write({"melanggar": bool(t.is_violator), "varian yang ditanam": t.variants or "-",
@@ -347,7 +340,7 @@ if view == "Benchmark":
             st.dataframe(lv.style.format("{:.0%}"), width="stretch")
         cov = rb.get("rp_range_coverage")
         if cov is not None:
-            st.caption(f"Kalibrasi rentang Rp: {cov:.0%} pelanggar terpilih berada dalam rentang prediksi. Target sekitar 80% (persentil 10–90).")
+            st.caption(f"Kalibrasi rentang Rp: {cov:.0%} pelanggar terpilih berada dalam rentang prediksi. Target sekitar 80% (persentil 10-90).")
     T = load_truth(branch)
     rules = scorer.rules_only(F)
     honest = T[~T.is_violator & T.lookalikes.str.contains("C1")].index

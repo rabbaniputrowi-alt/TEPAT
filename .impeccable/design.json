@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-09T00:29:56+07:00",
+  "generatedAt": "2026-10-09T08:30:00+07:00",
   "title": "Design System: TEPAT",
   "extensions": {
     "motion": [
@@ -47,19 +47,12 @@
       "css": ".ds-nav{background:#123b40;padding:1rem}.ds-nav-selected{width:100%;min-height:44px;text-align:left;background:#b7e9df;color:#133e41;border:1px solid transparent;border-radius:7px;padding:0.73rem 0.8rem;font:740 0.85rem Public Sans,Segoe UI,sans-serif}.ds-nav-selected:focus-visible{outline:2px solid #b7e9df;outline-offset:2px}"
     },
     {
-      "name": "Synthetic-data pill",
-      "kind": "chip",
-      "description": "A disclosure, not a live-service badge.",
-      "html": "<span class=\"ds-pill\">Data sintetis</span>",
-      "css": ".ds-pill{display:inline-flex;padding:0.3rem 0.65rem;border:1px solid #c1e4dc;border-radius:100px;background:#d8efe9;color:#1b6261;font:650 0.73rem Public Sans,Segoe UI,sans-serif}"
-    },
-    {
-      "name": "Summary cell",
+      "name": "Summary strip",
       "kind": "card",
-      "refersTo": "metric",
-      "description": "Quiet label/value cell; emphasize only the first summary cell.",
-      "html": "<div class=\"ds-metric\"><span class=\"ds-metric-label\">Perkiraan pemulihan</span><strong class=\"ds-metric-value\">Rp / jam</strong></div>",
-      "css": ".ds-metric{background:#fff;border:1px solid #dce6e7;border-radius:10px;padding:1rem 1.1rem;color:#153e43;min-height:116px;box-sizing:border-box;font-family:Public Sans,Segoe UI,sans-serif}.ds-metric-label{font-size:0.77rem;font-weight:600;white-space:normal}.ds-metric-value{display:block;font-size:1.7rem;font-weight:750;letter-spacing:-0.025em;font-variant-numeric:tabular-nums}"
+      "refersTo": "summary-strip",
+      "description": "Equal-weight figures divided by hairline rules; no cell is promoted with an accent fill.",
+      "html": "<div class=\"ds-summary\"><div class=\"ds-cell\"><span class=\"ds-cell-label\">Perkiraan pemulihan</span><strong class=\"ds-cell-value\">Rp7.436,1 jt</strong></div><div class=\"ds-cell\"><span class=\"ds-cell-label\">Perusahaan dalam anggaran</span><strong class=\"ds-cell-value\">108</strong></div></div>",
+      "css": ".ds-summary{display:flex;background:#fff;border:1px solid #dce6e7;border-radius:8px;font-family:Public Sans,Segoe UI,sans-serif}.ds-cell{flex:1;padding:0.95rem 1.15rem;color:#153e43}.ds-cell+.ds-cell{border-left:1px solid #dce6e7}.ds-cell-label{font-size:0.77rem;font-weight:600;white-space:normal}.ds-cell-value{display:block;margin-top:0.35rem;font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}@media(max-width:760px){.ds-summary{display:block}.ds-cell+.ds-cell{border-left:0;border-top:1px solid #dce6e7}}"
     },
     {
       "name": "Evidence row",
@@ -75,7 +68,7 @@
     "keyCharacteristics": [
       "Public Sans with tabular numerals for money and ranks.",
       "Left-aligned evidence, compact controls, flat surfaces.",
-      "A single high-emphasis summary cell; other metrics remain quiet.",
+      "One summary strip of equal-weight figures; the data ranks itself.",
       "Native Streamlit controls with visible interaction states."
     ],
     "rules": [
@@ -83,6 +76,11 @@
         "name": "The Evidence Rule",
         "body": "Color distinguishes state and comparison; labels carry the meaning. Do not make the user infer compliance from color alone.",
         "section": "colors"
+      },
+      {
+        "name": "The Plain Sentence Rule",
+        "body": "Interface copy is written the way an inspector would write it: no em dashes, middle dots, ellipsis glyphs, eyebrow labels, or status badges standing in for a sentence.",
+        "section": "typography"
       }
     ],
     "dos": [
@@ -93,7 +91,10 @@
     ],
     "donts": [
       "Don't replace the evidence workspace with a marketing hero or decorative feature grid.",
+      "Don't put an eyebrow label above a heading, or a row of status badges beside it.",
+      "Don't promote one figure with a filled accent block unless it is genuinely the decision.",
       "Don't use emoji as navigation, status, or decoration.",
+      "Don't write em dashes, middle dots or ellipsis glyphs in interface copy.",
       "Don't hide Streamlit's entire toolbar: it also contains mobile sidebar access.",
       "Don't change scoring, legal meaning, or benchmark claims as a styling task."
     ]

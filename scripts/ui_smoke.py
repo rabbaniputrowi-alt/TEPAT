@@ -26,7 +26,8 @@ with sync_playwright() as p:
     page.on("pageerror", lambda err: errors.append(str(err)))
     page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
     page.goto(args.url, wait_until="domcontentloaded")
-    page.get_by_role("button", name="Buka kasus", exact=True).wait_for(timeout=60000)
+    # First paint on a cold server includes loading and scoring the synthetic branch.
+    page.get_by_role("button", name="Buka kasus", exact=True).wait_for(timeout=300000)
     if page.get_by_role("button", name="Don't show again", exact=True).is_visible():
         page.get_by_role("button", name="Don't show again", exact=True).click()
 

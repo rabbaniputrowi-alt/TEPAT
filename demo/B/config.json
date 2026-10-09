@@ -1,0 +1,253 @@
+{
+  "seed": 202610072,
+  "n_employers": 1500,
+  "kabkota": [
+    {
+      "name": "Kab. Arunika",
+      "umk": {
+        "2024": 2300000,
+        "2025": 2450000,
+        "2026": 2600000
+      }
+    },
+    {
+      "name": "Kab. Banyusari",
+      "umk": {
+        "2024": 2200000,
+        "2025": 2340000,
+        "2026": 2480000
+      }
+    },
+    {
+      "name": "Kota Candrapura",
+      "umk": {
+        "2024": 2900000,
+        "2025": 3080000,
+        "2026": 3270000
+      }
+    }
+  ],
+  "size_bands": [
+    {
+      "name": "2-9",
+      "lo": 2,
+      "hi": 9,
+      "share": 0.55,
+      "hours": 3,
+      "umkm": "micro"
+    },
+    {
+      "name": "10-49",
+      "lo": 10,
+      "hi": 49,
+      "share": 0.3,
+      "hours": 6,
+      "umkm": "small"
+    },
+    {
+      "name": "50-249",
+      "lo": 50,
+      "hi": 249,
+      "share": 0.11,
+      "hours": 12,
+      "umkm": "medium"
+    },
+    {
+      "name": "250+",
+      "lo": 250,
+      "hi": 700,
+      "share": 0.04,
+      "hours": 24,
+      "umkm": "large"
+    }
+  ],
+  "sectors": {
+    "C": {
+      "label": "Manufaktur",
+      "weight": 0.18,
+      "wage_mu": 0.25,
+      "wage_sigma": 0.3,
+      "turnover": 0.02
+    },
+    "F": {
+      "label": "Konstruksi",
+      "weight": 0.1,
+      "wage_mu": 0.2,
+      "wage_sigma": 0.3,
+      "turnover": 0.04
+    },
+    "G": {
+      "label": "Perdagangan",
+      "weight": 0.24,
+      "wage_mu": 0.1,
+      "wage_sigma": 0.25,
+      "turnover": 0.03
+    },
+    "H": {
+      "label": "Logistik",
+      "weight": 0.08,
+      "wage_mu": 0.3,
+      "wage_sigma": 0.3,
+      "turnover": 0.025
+    },
+    "I": {
+      "label": "Akomodasi & Makan",
+      "weight": 0.14,
+      "wage_mu": 0.05,
+      "wage_sigma": 0.25,
+      "turnover": 0.04
+    },
+    "J": {
+      "label": "Informasi & Kom.",
+      "weight": 0.04,
+      "wage_mu": 0.9,
+      "wage_sigma": 0.4,
+      "turnover": 0.02
+    },
+    "K": {
+      "label": "Keuangan",
+      "weight": 0.04,
+      "wage_mu": 1.0,
+      "wage_sigma": 0.4,
+      "turnover": 0.015
+    },
+    "Q": {
+      "label": "Kesehatan",
+      "weight": 0.06,
+      "wage_mu": 0.5,
+      "wage_sigma": 0.35,
+      "turnover": 0.02
+    },
+    "A": {
+      "label": "Pertanian",
+      "weight": 0.12,
+      "wage_mu": 0.05,
+      "wage_sigma": 0.2,
+      "turnover": 0.03
+    }
+  },
+  "violations": {
+    "prevalence": 0.2,
+    "second_mode_prob": 0.15,
+    "mode_shares": {
+      "1": 0.33,
+      "2": 0.3,
+      "3": 0.15,
+      "4": 0.05,
+      "5": 0.17
+    },
+    "variant_shares": {
+      "1": {
+        "1a": 0.4,
+        "1b": 0.2,
+        "1c": 0.25,
+        "1d": 0.15
+      },
+      "2": {
+        "2a": 0.4,
+        "2b": 0.3,
+        "2c": 0.3
+      },
+      "3": {
+        "3a": 0.25,
+        "3b": 0.25,
+        "3c": 0.5
+      },
+      "4": {
+        "4a": 0.6,
+        "4b": 0.4
+      },
+      "5": {
+        "5a": 0.35,
+        "5b": 0.2,
+        "5c": 0.25,
+        "5d": 0.2
+      }
+    },
+    "held_back": [
+      "2b",
+      "1c",
+      "1d"
+    ]
+  },
+  "lookalikes": {
+    "C1_construction_project": 0.6,
+    "C2_umk_payer": 0.6,
+    "C3_seasonal_A": 0.3,
+    "C3_seasonal_other": 0.1,
+    "C4_layoff": 0.03,
+    "C5_fast_growth": 0.05,
+    "C7_newhire_ill": 0.03,
+    "C10_open_clinic_medium": 0.03,
+    "C10_open_clinic_large": 0.25,
+    "C11_distress": 0.02,
+    "C12_below_umk_micro": 0.25,
+    "C12_below_umk_small": 0.1
+  },
+  "noise": {
+    "nik_typo": 0.005,
+    "name_variant": 0.03,
+    "tk_lag_share": 0.1,
+    "oss_sigma": 0.3,
+    "dependent_spouse_share": 0.4,
+    "dependent_self_employed": 0.08
+  },
+  "realism": {
+    "sloppy_payer_share": 0.25,
+    "sloppy_late_prob": 0.3,
+    "slow_admin_share": 0.15,
+    "admin_rereg_prob": 0.04,
+    "wage_desync_prob": 0.02
+  },
+  "care": {
+    "inpatient_monthly_base": 0.004,
+    "inpatient_age_slope": 0.00012,
+    "newjob_bump": 1.5,
+    "outpatient_monthly": 0.04,
+    "inpatient_cost_median": 6000000,
+    "inpatient_cost_sigma": 0.8,
+    "outpatient_cost": 150000
+  },
+  "tk_rate": 0.1,
+  "inspection": {
+    "lookback_months": 12,
+    "budget_frac": 0.1,
+    "random_arm_frac": 0.08,
+    "training_sample_frac": 0.4
+  },
+  "branches": {
+    "A": {
+      "seed_offset": 1,
+      "held_back": [
+        "2b",
+        "1c",
+        "1d"
+      ]
+    },
+    "B": {
+      "seed_offset": 2,
+      "held_back": [
+        "2b",
+        "1c",
+        "1d"
+      ]
+    },
+    "C": {
+      "seed_offset": 3,
+      "held_back": [],
+      "sector_weights": {
+        "C": 0.28,
+        "F": 0.16,
+        "G": 0.16,
+        "H": 0.1,
+        "I": 0.08,
+        "J": 0.03,
+        "K": 0.03,
+        "Q": 0.04,
+        "A": 0.12
+      },
+      "lookalike_scale": 1.5
+    }
+  },
+  "branch": "B"
+}

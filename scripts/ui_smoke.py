@@ -32,9 +32,10 @@ with sync_playwright() as p:
         page.get_by_role("button", name="Don't show again", exact=True).click()
 
     def settle(title: str):
-        page.get_by_role("heading", name=title, exact=True).wait_for(timeout=30000)
-        page.wait_for_function("document.querySelectorAll('[data-testid=stSkeleton]').length === 0", timeout=30000)
-        page.locator('[data-testid="stApp"][data-test-script-state="notRunning"]').wait_for(timeout=30000)
+        # A full rerun takes 15-21 s on this laptop on battery; 30 s left too little margin after a reload.
+        page.get_by_role("heading", name=title, exact=True).wait_for(timeout=90000)
+        page.wait_for_function("document.querySelectorAll('[data-testid=stSkeleton]').length === 0", timeout=90000)
+        page.locator('[data-testid="stApp"][data-test-script-state="notRunning"]').wait_for(timeout=90000)
         page.evaluate("document.fonts.ready")
         page.evaluate("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
         assert page.locator('[data-testid="stException"]').count() == 0

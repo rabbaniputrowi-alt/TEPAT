@@ -4,14 +4,20 @@
 
 Inspector views read observed/ + the scorer's ranked output. Only the clearly labelled
 "kunci jawaban" expanders and the benchmark tab read truth/ (to show how the method was scored).
+
+Data source per branch: the full local run (data/<branch>/ + results/*.parquet, gitignored) when it
+exists, otherwise the committed slice in demo/ (fresh clone, Streamlit Community Cloud). Set
+TEPAT_DEMO=1 to force the slice. See scripts/make_demo_slice.py for what the slice keeps.
 """
 from __future__ import annotations
 
 import base64
 import csv
 import hashlib
+import importlib.util
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from html import escape
@@ -21,12 +27,16 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from tepat import rules as R
-from tepat import scorer
-
 ROOT = Path(__file__).resolve().parents[1]
+if importlib.util.find_spec("tepat") is None:  # Community Cloud installs requirements only, not the package
+    sys.path.insert(0, str(ROOT / "src"))
+
+from tepat import rules as R  # noqa: E402
+from tepat import scorer  # noqa: E402
+
 DATA = Path(os.environ.get("TEPAT_DATA", ROOT / "data"))
 RESULTS = Path(os.environ.get("TEPAT_RESULTS", ROOT / "results"))
+DEMO = ROOT / "demo"
 TIPS = RESULTS / "tips.csv"
 BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 SEKTOR = {"C": "Manufaktur", "F": "Konstruksi", "G": "Perdagangan", "H": "Logistik", "I": "Akomodasi & Makan",
@@ -42,6 +52,11 @@ st.set_page_config(page_title="TEPAT Pemeriksaan Kepatuhan", page_icon=":materia
 
 def rp(x: float) -> str:
     return "Rp" + f"{x:,.0f}".replace(",", ".")
+
+
+def ribu(n: int) -> str:
+    """Indonesian thousands separator: 1.500, not 1,500."""
+    return f"{n:,}".replace(",", ".")
 
 
 def jt(x: float) -> str:
@@ -61,18 +76,35 @@ def day_label(d: float | None) -> str:
     return f"{d % 30 + 1} {month_label(d // 30)}"
 
 
+def sources(branch: str) -> tuple[Path, Path, Path, bool]:
+    """Branch folder, ranked and features files: the full local run if present, else the demo slice."""
+    full = (DATA / branch, RESULTS / f"ranked_{branch}.parquet", RESULTS / f"features_{branch}.parquet")
+    if os.environ.get("TEPAT_DEMO") != "1" and (full[0] / "observed").is_dir() and full[1].is_file() and full[2].is_file():
+        return (*full, False)
+    return DEMO / branch, DEMO / branch / "ranked.parquet", DEMO / branch / "features.parquet", True
+
+
 @st.cache_data(show_spinner="Memuat data sintetis")
-def load(branch: str):
-    obs = scorer.load_observed(DATA / branch)
-    ranked = pd.read_parquet(RESULTS / f"ranked_{branch}.parquet")
-    F = pd.read_parquet(RESULTS / f"features_{branch}.parquet")
+def load(branch_dir: str, ranked_path: str, features_path: str):
+    obs = scorer.load_observed(branch_dir)
+    ranked = pd.read_parquet(ranked_path)
+    F = pd.read_parquet(features_path)
     reg = obs["employer_registry"].set_index("employer_id")
     return obs, ranked, F, reg
 
 
 @st.cache_data
-def load_truth(branch: str) -> pd.DataFrame:
-    return pd.read_parquet(DATA / branch / "truth" / "employers_truth.parquet").set_index("employer_id")
+def load_truth(branch_dir: str) -> pd.DataFrame:
+    return pd.read_parquet(Path(branch_dir) / "truth" / "employers_truth.parquet").set_index("employer_id")
+
+
+@st.cache_data
+def demo_worker_employers(branch: str) -> int:
+    """How many employers the demo slice keeps worker rows for (0 if the manifest is missing)."""
+    manifest = DEMO / "manifest.json"
+    if not manifest.is_file():
+        return 0
+    return len(json.loads(manifest.read_text(encoding="utf-8"))["branches"][branch]["employers_with_worker_detail"])
 
 
 @st.cache_data
@@ -132,15 +164,16 @@ st.sidebar.markdown('<div class="sidebar-brand">TEPAT</div>', unsafe_allow_html=
 view = st.sidebar.radio("Ruang kerja", VIEWS, key="view", label_visibility="collapsed")
 branch = st.sidebar.selectbox("Cabang data sintetis", ["B", "C", "A"], key="branch",
                               format_func=lambda b: {"A": "A (tuning)", "B": "B (uji tertahan)", "C": "C (uji bergeser)"}[b])
+branch_dir, ranked_path, features_path, demo_mode = sources(branch)
 try:
-    obs, ranked, F, reg = load(branch)
+    obs, ranked, F, reg = load(str(branch_dir), str(ranked_path), str(features_path))
 except FileNotFoundError:
     st.error("Data demo belum tersedia. Jalankan perintah berikut di folder repo, lalu muat ulang halaman.")
     st.code("uv run tepat all", language="bash")
     st.stop()
 lookback = 12
 D = R.SCORING_DAY
-st.sidebar.markdown(f'<div class="sidebar-context"><b>{len(reg):,}</b> perusahaan sintetis<br>'
+st.sidebar.markdown(f'<div class="sidebar-context"><b>{ribu(len(reg))}</b> perusahaan sintetis<br>'
                     f'{month_label(0)} s.d. {month_label(R.HORIZON_MONTHS - 1)}<br>Model TEPAT v2.1</div>', unsafe_allow_html=True)
 st.sidebar.markdown('<div class="sidebar-note"><strong>Bukan data BPJS asli</strong>'
                     'Perusahaan, pekerja, NIK, dan UMK fiktif. NIK demo diawali 99. Tidak terhubung ke layanan BPJS.</div>'
@@ -280,7 +313,7 @@ if view == "Kasus perusahaan":
                 theme=None, width="stretch")
     with st.expander("Kunci jawaban (khusus demo sintetis)"):
         st.caption("Tidak tersedia bagi petugas di dunia nyata. Tidak dipakai untuk menentukan peringkat.")
-        t = load_truth(branch).loc[eid]
+        t = load_truth(str(branch_dir)).loc[eid]
         st.write({"melanggar": bool(t.is_violator), "varian yang ditanam": t.variants or "-",
                   "look-alike jujur": t.lookalikes or "-", "Rp dapat dipulihkan (sebenarnya)": rp(t.recoverable_rp_true)})
 
@@ -299,7 +332,7 @@ if view == "Benchmark":
         b.metric("Presisi pemeriksaan", f"{best['precision']:.0%}")
         c.metric("Perusahaan jujur ditandai", f"{best['honest_flag_rate']:.1%}")
         d.metric("Dibanding aturan saja", f"{best['rp_per_hour'] / max(1, baseline['rp_per_hour']):.2f}×", help="Perbandingan Rp per jam, bukan dampak nasional.")
-    st.caption(f"Cabang {branch}: {rb['employers']:,} perusahaan; {rb['violators']} pelanggar ditanam ({rb['prevalence']:.0%}); "
+    st.caption(f"Cabang {branch}: {ribu(rb['employers'])} perusahaan; {rb['violators']} pelanggar ditanam ({rb['prevalence']:.0%}); "
                f"anggaran {rb['budget_hours']:.0f} jam, sekitar 10% total jam.")
     rows = []
     for k, v in rb["rankings"].items():
@@ -341,7 +374,7 @@ if view == "Benchmark":
         cov = rb.get("rp_range_coverage")
         if cov is not None:
             st.caption(f"Kalibrasi rentang Rp: {cov:.0%} pelanggar terpilih berada dalam rentang prediksi. Target sekitar 80% (persentil 10-90).")
-    T = load_truth(branch)
+    T = load_truth(str(branch_dir))
     rules = scorer.rules_only(F)
     honest = T[~T.is_violator & T.lookalikes.str.contains("C1")].index
     ex = [e for e in rules.index[:200] if e in honest]
@@ -387,10 +420,14 @@ if view == "Keadilan & jalur acak":
 if view == "Cek kepesertaan saya":
     st.info("Untuk pekerja: apakah pemberi kerja sudah mendaftarkan dan membayar iuran BPJS Kesehatan Anda? "
                "Di dunia nyata fitur ini berada di Mobile JKN; di sini memakai data sintetis.")
+    if demo_mode:
+        n_detail = demo_worker_employers(branch)
+        st.caption(f"Versi daring ini memuat data pekerja dari {n_detail} perusahaan contoh, bukan {ribu(len(reg))}. "
+                   "Hasil untuk setiap NIK yang dimuat tetap sama dengan data lengkap. Halaman lain memakai semua perusahaan.")
     ks, tk, bill, mem = obs["ks_membership"], obs["tk_exchange"], obs["billing"], obs["ks_members"]
 
     @st.cache_data
-    def demo_niks(branch: str) -> dict:
+    def demo_niks(branch_dir: str) -> dict:
         tk7 = tk[(tk.quarter == 7) & (tk.program == "regular")]
         active_ks = ks[ks.ppu_end.isna() | (ks.ppu_end > D)]
         no_ks = tk7[~tk7.nik.isin(ks.nik) & ~tk7.nik.isin(mem.nik)]
@@ -411,7 +448,7 @@ if view == "Cek kepesertaan saya":
             out["Semua beres"] = ok.nik.iloc[len(ok) // 2]
         return out
 
-    demos = demo_niks(branch)
+    demos = demo_niks(str(branch_dir))
     pick = st.radio("Contoh NIK sintetis", list(demos), horizontal=False, key="worker_scenario")
     nik = st.text_input("NIK (16 digit)", value=demos.get(pick, ""), max_chars=16)
     if nik:
@@ -464,7 +501,8 @@ if view == "Cek kepesertaan saya":
                 st.success(f"Laporan demo tersimpan. Nomor tiket **{tiket}**. NIK mentah tidak disimpan dalam tiket; hanya hash. "
                            "Laporan muncul di halaman kasus perusahaan untuk demo petugas. Tidak dikirim ke BPJS.")
         if len(my_ks) == 0 and len(my_tk) == 0 and len(my_dep) == 0:
-            st.info("NIK tidak ditemukan. Pilih skenario demo untuk mencoba data yang tersedia.")
+            st.info("NIK tidak ditemukan" + (" dalam data pekerja versi daring" if demo_mode else "")
+                    + ". Pilih skenario demo untuk mencoba data yang tersedia.")
     st.caption("Dalam proposal: notifikasi proaktif lewat Mobile JKN dan alur triase laporan (slide), bukan bagian prototipe.")
 
 st.markdown('<footer class="app-footer"><span>TEPAT / Tim Johannes Kepler / Healthkathon 2026</span>'

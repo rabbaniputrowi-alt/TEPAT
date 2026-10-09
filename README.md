@@ -14,10 +14,46 @@ plain-Indonesian reasons, the legal basis, a document request list and a suggest
 
 ```bash
 uv sync
-uv run tepat all                               # generate A/B/C, score, benchmark  (~2 min)
-uv run streamlit run app/streamlit_app.py      # demo app
-uv run pytest -q                               # wall + legal-rule tests
+uv run streamlit run app/streamlit_app.py      # demo app; a fresh clone runs on the committed demo/ slice
+uv run tepat all                               # optional: regenerate A/B/C, score, benchmark (~2 min)
+uv run pytest -q                               # wall, legal-rule, app and demo-slice tests
 ```
+
+The app reads the full local run (`data/<branch>/` + `results/*.parquet`, both gitignored) when it exists and
+falls back to `demo/` otherwise. `TEPAT_DEMO=1` forces the slice.
+
+## Demo slice (`demo/`, about 7 MB)
+
+What a fresh clone and Streamlit Community Cloud run on. Built from the full run by
+`uv run python scripts/make_demo_slice.py`; `demo/manifest.json` records the selection and a SHA-256 per file.
+
+- **All 1,500 employers per branch** for everything employer-level: registry, billing, ranked output, features,
+  `employers_truth`. The queue, case, benchmark and fairness views show exactly what the full run shows.
+- **Worker-level tables for 200 employers per branch**: the top 40 of the inspection queue, the whole
+  installment queue, the best-ranked employer for each worker scenario, then a size-stratified random fill.
+  The cut is closed under NIK (a kept worker keeps every row at every employer), so *Cek Kepesertaan Saya*
+  answers exactly as on the full data for every NIK it holds. Workers of other employers are absent, and the
+  view says so.
+- Left out: `truth/payroll_truth` and `truth/labels` (the app never reads them).
+- `tests/test_demo.py` checks the hashes, renders every view on every branch from the slice, and (when the full
+  run is present) checks the slice frame by frame against it.
+
+## Deploy on Streamlit Community Cloud
+
+1. share.streamlit.io, **Create app**, then pick repo `rabbaniputrowi-alt/TEPAT`, branch `main`,
+   main file `app/streamlit_app.py`.
+2. **Advanced settings**: Python **3.11** (matches `.python-version` and the lockfile). Python can only be
+   changed later by deleting and redeploying.
+3. Dependencies come from `app/requirements.txt`, exported from `uv.lock`. Community Cloud looks in the
+   entrypoint folder before the repo root, so this file wins over the root `uv.lock`. After changing
+   dependencies, re-export with
+   `uv export --frozen --no-dev --no-hashes --no-emit-project --format requirements-txt > app/requirements.txt`
+   (a test fails if the two drift).
+4. A private repo gives a private app (one per account). Invite viewers by email, or switch the app to public
+   under **Share** when judges need the link.
+
+Worker reports from the demo button are written to `results/tips.csv` on the app's container: shared by all
+visitors and lost when the app restarts. They are demo records only.
 
 ## Layout
 
@@ -29,6 +65,8 @@ uv run pytest -q                               # wall + legal-rule tests
 | `src/tepat/scorer.py` | reads `observed/` only: fuzzy TK↔KS matching, ~25 signals, Rp estimate, P(violation), priority, reasons |
 | `src/tepat/bench.py` | compares rankings under a fixed inspection-hour budget; the only scorer-side module that reads `truth/` |
 | `app/streamlit_app.py` | inspector list, case page, benchmark, fairness + random arm, worker self-check (*Cek Kepesertaan Saya*) |
+| `app/requirements.txt` | pinned runtime dependencies for Streamlit Community Cloud (exported from `uv.lock`) |
+| `demo/` | committed demo slice; `scripts/make_demo_slice.py` rebuilds it |
 | `tests/test_wall.py` | the scorer never imports the generator or reads `truth/`; legal rules hold |
 
 ## Benchmark protocol

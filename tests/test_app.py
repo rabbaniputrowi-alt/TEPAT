@@ -8,8 +8,9 @@ APP = Path(__file__).resolve().parents[1] / "app" / "streamlit_app.py"
 VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Benchmark", "Keadilan & jalur acak", "Cek kepesertaan saya"]
 
 
+# A fresh environment spends its first run on cold imports and data loading, hence 120 s timeouts.
 def test_sidebar_navigation_opens_case_view():
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = AppTest.from_file(str(APP), default_timeout=120).run()
     assert not app.exception
     assert "view" in [radio.key for radio in app.sidebar.radio], "The workspace needs a persistent sidebar navigation."
     assert app.sidebar.radio(key="view").options == VIEWS
@@ -23,7 +24,7 @@ def test_workspace_copy_has_no_emojis():
     import re
 
     emoji = re.compile(r"[\U0001f300-\U0001faff\u2600-\u27bf\ufe0f]")
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = AppTest.from_file(str(APP), default_timeout=120).run()
     assert not app.exception
     visible = []
     for kind in ("title", "header", "subheader", "caption", "markdown", "info", "warning", "error", "success", "button"):
@@ -34,7 +35,7 @@ def test_workspace_copy_has_no_emojis():
 
 
 def test_priority_preview_opens_the_ranked_employer():
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = AppTest.from_file(str(APP), default_timeout=120).run()
     expected = app.dataframe[0].value.index[0]
     assert "open_case" in [button.key for button in app.button], "The queue needs a direct path into its first case."
     app.button(key="open_case").click().run()

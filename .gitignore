@@ -7,3 +7,4 @@ results/_quick/
 results/*.parquet
 results/tips.csv
 .impeccable/review/
+results/sweep/logs/

@@ -1,0 +1,4 @@
+# Build outputs; the exported PDF lives in the vault (08-Proposal/_export/).
+out.pdf
+*.pdf
+preview/

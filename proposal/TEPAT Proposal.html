@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>TEPAT. Proposal Healthkathon 2026, Tim Johannes Kepler</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@font-face {
+  font-family: "Public Sans";
+  src: url("../app/assets/public-sans-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@page { size: 1920px 1080px; margin: 0; }
+
+:root {
+  --canvas: #f3f7f7; --paper: #ffffff; --ink: #153e43; --muted: #587078; --border: #dce6e7;
+  --primary: #087f82; --primary-dark: #06696c; --soft: #e4f3f1; --nav: #123b40; --nav-muted: #bad3d4;
+  --amber: #d48b4a; --baseline: #98aeb5; --chart2: #72aaa9;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #c7d3d4; color: var(--ink);
+  font-family: "Public Sans", "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  text-rendering: optimizeLegibility;
+}
+.deck { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 28px 0; }
+.slide {
+  width: 1920px; height: 1080px; flex: none; position: relative; overflow: hidden;
+  display: flex; flex-direction: column; padding: 80px 112px 0;
+  background: var(--canvas); zoom: var(--z, 1);
+}
+@media print {
+  body { background: none; }
+  .deck { display: block; padding: 0; }
+  .slide { zoom: 1; break-after: page; }
+}
+h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+b, strong { font-weight: 680; }
+
+.slide > h2 {
+  font-size: 56px; font-weight: 720; letter-spacing: -0.01em; line-height: 1.12;
+  max-width: 1600px; margin-bottom: 40px; text-wrap: balance;
+}
+.body { flex: 1; min-height: 0; font-size: 26px; line-height: 1.42; }
+.foot {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 56px;
+  border-top: 1px solid var(--border); padding: 16px 0 26px; margin-top: 24px;
+  font-size: 18px; line-height: 1.4; color: var(--muted);
+}
+.foot .src { max-width: 1380px; }
+.foot .where { white-space: nowrap; text-align: right; }
+.foot .where span { color: var(--ink); font-weight: 600; margin-left: 22px; }
+
+h3 { font-size: 25px; font-weight: 700; line-height: 1.3; margin-bottom: 14px; }
+.muted { color: var(--muted); }
+.small { font-size: 22px; line-height: 1.4; }
+.key { font-size: 30px; font-weight: 680; line-height: 1.32; color: var(--primary-dark); }
+.rule-top { border-top: 1px solid var(--border); padding-top: 22px; }
+
+.cols { display: grid; gap: 80px; }
+.c-2 { grid-template-columns: 1fr 1fr; }
+.c-64 { grid-template-columns: 1.3fr 1fr; }
+.c-46 { grid-template-columns: 1fr 1.3fr; }
+
+ul.dots { padding-left: 1.05em; }
+ul.dots li::marker { color: var(--primary); }
+ul.dots li + li, ol.steps li + li { margin-top: 14px; }
+ul.tight li + li { margin-top: 8px; }
+
+.stack > * + * { margin-top: 30px; }
+
+/* tables */
+.t { width: 100%; border-collapse: collapse; font-size: 24px; line-height: 1.36; }
+.t th {
+  text-align: left; font-size: 19px; font-weight: 650; color: var(--muted);
+  padding: 0 28px 12px 0; border-bottom: 1px solid var(--ink); vertical-align: bottom;
+}
+.t td { padding: 14px 28px 14px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+.t td:last-child, .t th:last-child { padding-right: 0; }
+.t.c22 { font-size: 22px; }
+.t.c22 td { padding: 11px 24px 11px 0; }
+.t .num { text-align: right; white-space: nowrap; }
+.t th.num { text-align: right; }
+.t tr.hi td { font-weight: 680; color: var(--primary-dark); }
+.t tr.lo td { color: var(--muted); }
+.t td.lead { font-weight: 650; }
+
+/* bars */
+.bar { display: flex; height: 40px; border-radius: 6px; overflow: hidden; background: var(--paper); }
+.bar > i { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 34px; margin-top: 16px; font-size: 21px; color: var(--muted); }
+.legend span::before {
+  content: ""; display: inline-block; width: 16px; height: 16px; border-radius: 3px;
+  margin-right: 10px; vertical-align: -1px; background: var(--sw);
+  box-shadow: inset 0 0 0 1px rgba(21, 62, 67, .12);
+}
+.legend b { color: var(--ink); font-weight: 650; }
+
+.shot { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--paper); }
+.shot img { display: block; width: 100%; height: auto; }
+.caption { font-size: 19px; color: var(--muted); margin-top: 12px; line-height: 1.4; }
+
+.ph { background: #fbeee2; color: #8a4b14; padding: 0 8px; border-radius: 4px; font-weight: 600; }
+
+/* cover */
+.cover { background: var(--nav); color: #e7f0f0; padding: 112px 112px 72px; }
+.cover h1 { font-size: 190px; font-weight: 780; letter-spacing: -0.01em; line-height: .95; color: #f3f7f7; }
+.cover .sub { font-size: 42px; font-weight: 500; color: var(--nav-muted); margin-top: 22px; }
+.cover .value { font-size: 34px; line-height: 1.42; max-width: 1260px; margin-top: 64px; }
+.cover .facts {
+  margin-top: auto; display: grid; grid-template-columns: 0.9fr 1.5fr 0.8fr; gap: 64px;
+  border-top: 1px solid rgba(186, 211, 212, .35); padding-top: 28px;
+}
+.cover dt { font-size: 20px; font-weight: 600; color: var(--nav-muted); margin-bottom: 8px; }
+.cover dd { font-size: 27px; line-height: 1.38; }
+.cover .disclose { font-size: 20px; color: var(--nav-muted); margin-top: 30px; }
+
+/* S02 */
+ol.modes { list-style: none; padding: 0; }
+ol.modes li { display: grid; grid-template-columns: 54px 1fr; gap: 10px; }
+ol.modes li + li { margin-top: 20px; }
+ol.modes .n { font-size: 34px; font-weight: 750; color: var(--primary); line-height: 1.15; }
+.why p + p { border-top: 1px solid var(--border); padding-top: 22px; margin-top: 22px; }
+
+/* S03 */
+.money { display: grid; grid-template-columns: 250px 1fr; row-gap: 18px; align-items: center; font-size: 23px; }
+.money .lab { color: var(--muted); }
+.money .track { position: relative; height: 54px; }
+.money .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; display: flex; align-items: center; padding-left: 18px; color: #fff; font-weight: 650; font-size: 24px; }
+.gapnote { margin-left: 250px; margin-top: 14px; font-size: 22px; color: var(--muted); }
+.gapnote b { color: #9a5a1f; }
+
+/* S05 */
+ol.flow { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-bottom: 40px; }
+ol.flow li { padding: 0 44px 0 0; position: relative; }
+ol.flow li + li { padding-left: 44px; border-left: 1px solid var(--border); }
+ol.flow .n { display: block; font-size: 30px; font-weight: 750; color: var(--primary); margin-bottom: 6px; }
+
+/* S13 phase strip */
+.phases { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--ink); }
+.phases > div { padding: 18px 28px 0 0; }
+.phases > div + div { padding-left: 28px; border-left: 1px solid var(--border); }
+.phases h3 { margin-bottom: 4px; }
+.phases .when { font-size: 20px; color: var(--muted); margin-bottom: 14px; }
+.phases .what { font-size: 22px; line-height: 1.4; }
+.phases .out { font-size: 22px; line-height: 1.4; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.phases .out b { display: block; font-size: 18px; color: var(--muted); font-weight: 650; margin-bottom: 2px; }
+
+/* S18 team */
+.team { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ink); }
+.team > div { padding: 22px 32px 0 0; }
+.team > div + div { padding-left: 32px; border-left: 1px solid var(--border); }
+.team .name { font-size: 32px; font-weight: 720; line-height: 1.2; }
+.team .role { font-size: 23px; color: var(--primary-dark); font-weight: 600; margin: 8px 0 14px; }
+
+/* S20 sources */
+.sources { columns: 2; column-gap: 80px; font-size: 20px; line-height: 1.42; }
+.sources h3 { font-size: 21px; margin: 0 0 6px; break-after: avoid; }
+.sources ul { list-style: none; padding: 0; margin-bottom: 20px; break-inside: avoid; }
+.sources li + li { margin-top: 4px; }
+.sources a { text-decoration: none; }
+
+/* per-slide sizing: fill the frame with larger type rather than more content */
+#s01 .facts { grid-template-columns: 0.85fr 1.75fr 0.75fr; }
+#s02 .why { font-size: 27px; }
+#s03 .cols { font-size: 27px; margin-top: 56px !important; }
+#s03 .cols .key { font-size: 33px; }
+#s03 ul.dots li + li { margin-top: 20px; }
+#s06 .stack { font-size: 22.5px !important; }
+#s06 .stack > * + * { margin-top: 22px; }
+#s07 .t { font-size: 25px; }
+#s07 .t td { padding: 14px 28px 14px 0; }
+#s07 .why-bpjs { font-size: 24px !important; margin-top: 38px !important; }
+#s10 .body { font-size: 26px !important; }
+#s10 .t { font-size: 25px; }
+#s10 .t td { padding: 13px 24px 13px 0; }
+#s13 .phases .what, #s13 .phases .out { font-size: 25px; }
+#s13 .phases .when { font-size: 22px; }
+#s13 .phases h3 { font-size: 28px; }
+#s13 .res { font-size: 25px !important; }
+#s14 .t { font-size: 28px; }
+#s14 .t td { padding: 18px 28px 18px 0; }
+#s14 .side { font-size: 26px !important; }
+#s15 .t { font-size: 25px; }
+#s15 .t td { padding: 15px 24px 15px 0; }
+#s15 .measure { font-size: 25px !important; }
+#s16 .t { font-size: 25.5px !important; }
+#s16 .t td { padding: 14px 28px 14px 0; }
+#s17 .t { font-size: 24px !important; }
+#s17 .t td { padding: 16px 26px 16px 0; }
+#s18 .team .name { font-size: 38px; }
+#s18 .team .role { font-size: 26px; }
+#s18 .team p:last-child, #s18 .cols p { font-size: 26px; }
+#s18 .cols h3 { font-size: 27px; }
+#s19 .body { font-size: 28.5px !important; }
+#s19 ul.dots li + li { margin-top: 20px; }
+#s20 .sources { font-size: 23px; line-height: 1.45; }
+#s20 .sources h3 { font-size: 24px; }
+#s20 .sources ul { margin-bottom: 26px; }
+</style>
+</head>
+<body>
+<main class="deck">
+
+<!-- S01 -->
+<section class="slide cover" id="s01">
+  <h1>TEPAT</h1>
+  <p class="sub">Pemeriksaan Kepatuhan Tepat Sasaran</p>
+  <p class="value">TEPAT membantu tim kepatuhan BPJS Kesehatan menentukan pemberi kerja mana yang perlu ditindaklanjuti lebih dulu, apa alasannya, dan tindakan apa yang sepadan, dengan data yang sudah dimiliki dan dipertukarkan BPJS.</p>
+  <dl class="facts">
+    <div><dt>Kategori</dt><dd>Efisiensi Risiko pada Pemberi Kerja</dd></div>
+    <div><dt>Tim Johannes Kepler, SMA Negeri 34 Jakarta</dt><dd>Rabbani Putrowi (ketua), Raffa Maliq Revaya, Ahmad Fahri Fauzi</dd></div>
+    <div><dt>Demo</dt><dd><a href="https://tepat-jkp.streamlit.app">tepat-jkp.streamlit.app</a></dd></div>
+  </dl>
+  <p class="disclose">Proposal Healthkathon 2026. Seluruh data di proposal dan demo adalah data sintetis. Tidak ada data peserta JKN riil.</p>
+</section>
+
+<!-- S02 -->
+<section class="slide" id="s02">
+  <h2>Satu kategori, empat sub-mode inti</h2>
+  <div class="body cols c-64">
+    <div>
+      <p class="muted small" style="margin-bottom:26px">Kategori Efisiensi Risiko pada Pemberi Kerja. Penomoran sub-mode mengikuti Participant Guide Healthkathon 2026.</p>
+      <h3>Dibangun dan diuji</h3>
+      <ol class="modes">
+        <li><span class="n">1</span><div><b>Pendaftaran Pekerja Sebagian.</b> Pekerja tercatat di BPJS Ketenagakerjaan tetapi tidak di BPJS Kesehatan, termasuk yang hanya didaftarkan sebagai tanggungan pasangannya.</div></li>
+        <li><span class="n">2</span><div><b>Under-reporting Upah.</b> Upah ke BPJS Kesehatan lebih rendah daripada ke BPJS Ketenagakerjaan, atau menumpuk di UMK melebihi pola sektor sejenis.</div></li>
+        <li><span class="n">3</span><div><b>Penggelapan atau Penundaan Setoran Iuran.</b> Membayar BPJS Ketenagakerjaan tepat waktu, tetapi iuran BPJS Kesehatan terlambat atau kurang.</div></li>
+        <li><span class="n">5</span><div><b>Manipulasi Data Mutasi.</b> Pekerja baru didaftarkan terlambat (ada yang baru didaftarkan menjelang rawat inap), atau dikeluarkan sebelum benar-benar berhenti, termasuk PHK yang diikuti rekrut ulang.</div></li>
+      </ol>
+      <p class="small rule-top" style="margin-top:28px"><b>Pendukung:</b> 4. Misklasifikasi Status Kerja (perpindahan pekerja secara berkelompok ke segmen mandiri atau PBI; peserta mandiri di klinik milik perusahaan).<br><b>Peta jalan, belum dibangun:</b> 6. Kolusi dengan faskes.</p>
+    </div>
+    <div class="why">
+      <h3>Mengapa posisi ini berbeda</h3>
+      <p>Menjawab langkah yang dinyatakan BPJS sendiri: memakai data pertukaran untuk menentukan sasaran pemeriksaan bersama.</p>
+      <p>Memakai jejak yang hanya dimiliki JKN: data pelayanan kesehatan ikut menjadi bukti kepatuhan pemberi kerja.</p>
+      <p>Mengurutkan menurut rupiah yang dapat dipulihkan per jam pemeriksaan, karena yang terbatas adalah jam pemeriksa.</p>
+    </div>
+  </div>
+  <footer class="foot"><div class="src">Sumber: detik, 7 Sep 2026 (PKS BPJS Kesehatan dan BPJS Ketenagakerjaan); Participant Guide Healthkathon 2026 §6.</div><div class="where">Bagian 1. Identitas &amp; Positioning<span>2 / 20</span></div></footer>
+</section>
+
+<!-- S03 -->
+<section class="slide" id="s03">
+  <h2>Iuran yang tidak masuk ikut menekan dana JKN</h2>
+  <div class="body">
+    <div class="money">
+      <div class="lab">Manfaat dibayar</div>
+      <div class="track"><div class="fill" style="width:1100px;background:var(--ink)">Rp132 triliun</div></div>
+      <div class="lab">Iuran terkumpul</div>
+      <div class="track"><div class="fill" style="width:983px;background:var(--primary)">Rp118 triliun</div><div style="position:absolute;left:983px;width:117px;top:0;bottom:0;border:2px dashed var(--amber);border-left:none;border-radius:0 6px 6px 0"></div></div>
+    </div>
+    <p class="gapnote">Sampai September 2026. <b>Selisih arus kas Rp14 triliun</b>; pemerintah menambah Rp20 triliun pada Oktober dan November 2026.</p>
+    <div class="cols c-2" style="margin-top:46px;gap:72px">
+      <ul class="dots">
+        <li>Biaya pelayanan kesehatan naik dari Rp108,8 triliun (2019) menjadi <b>Rp190,3 triliun (2025)</b>.</li>
+        <li>Tunggakan iuran seluruh segmen peserta mencapai <b>Rp21,48 triliun dari 28,85 juta peserta</b> per Desember 2024. Porsi pemberi kerja tidak dipublikasikan, jadi kami tidak memperkirakannya.</li>
+        <li><b>67,2 juta</b> peserta JKN adalah pekerja penerima upah (PPU). Iurannya 5% dari upah: 4% dibayar pemberi kerja, 1% dipotong dari gaji pekerja dan wajib disetor oleh pemberi kerja.</li>
+      </ul>
+      <div>
+        <p class="key">Pekerja yang tidak didaftarkan, upah yang dilaporkan lebih rendah, dan iuran yang dipotong tetapi tidak disetor adalah iuran yang semestinya masuk.</p>
+        <p style="margin-top:22px">Kami membingkainya sebagai soal efisiensi pengumpulan dan integritas data, bukan tuduhan terhadap pemberi kerja.</p>
+      </div>
+    </div>
+  </div>
+  <footer class="foot"><div class="src">Sumber: Kontan, 28 Sep 2026; Kompas, 16 Sep 2026; Kompas.id, Feb 2025; Antara, 14 Okt 2025; Participant Guide §6; UU 24/2011 Pasal 19.</div><div class="where">Bagian 2. Masalah &amp; Urgensi<span>3 / 20</span></div></footer>
+</section>
+
+<!-- S04 -->
+<section class="slide" id="s04">
+  <h2>Jam pemeriksa terbatas, perusahaan banyak</h2>
+  <div class="body cols c-64" style="font-size:24px">
+    <div>
+      <ul class="dots">
+        <li>BPJS Kesehatan menyebut tantangannya sendiri: SDM terbatas, volume transaksi terus naik, dan data makin kompleks.</li>
+        <li>Satu wilayah cabang (Tulungagung, Trenggalek, Pacitan) memeriksa <b>1.544 perusahaan</b> sepanjang 2025.</li>
+        <li>Pengawasan saat ini berjalan lewat sinkronisasi dan validasi data, monitoring, telemarketing, pemeriksaan, dan SPHP. Pemeriksaan menyasar badan usaha yang "terindikasi belum optimal". Cara mengurutkan sasaran tidak dipublikasikan.</li>
+      </ul>
+      <div class="rule-top" style="margin-top:30px">
+        <h3>Tulungagung: 1.092 badan usaha yang terdata</h3>
+        <div class="bar"><i style="width:30.8%;background:var(--primary)"></i><i style="width:7.3%;background:var(--chart2)"></i><i style="width:61.9%;background:var(--baseline)"></i></div>
+        <div class="legend">
+          <span style="--sw:var(--primary)"><b>336</b> terdaftar dan rutin membayar</span>
+          <span style="--sw:var(--chart2)"><b>80</b> terdaftar, belum rutin</span>
+          <span style="--sw:var(--baseline)"><b>676</b> belum mendaftarkan pekerjanya</span>
+        </div>
+        <p class="caption">Data satu cabang, bukan angka nasional.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div>
+        <h3>Siapa yang paling terdampak</h3>
+        <ul class="dots">
+          <li><b>Pekerja.</b> Bila pemberi kerja belum membayar iuran sampai akhir bulan, kepesertaan pekerja dihentikan sementara mulai tanggal 1 bulan berikutnya. Pekerja bisa baru mengetahuinya saat membutuhkan layanan.</li>
+          <li><b>Dana JKN.</b> Iuran yang semestinya masuk tidak masuk.</li>
+          <li><b>Pemberi kerja yang patuh.</b> Setiap pemanggilan yang salah sasaran menyita waktu mereka dan jam pemeriksa.</li>
+        </ul>
+      </div>
+      <div class="rule-top">
+        <h3>Mengapa sekarang</h3>
+        <ul class="dots">
+          <li>7 September 2026: BPJS Kesehatan dan BPJS Ketenagakerjaan menandatangani PKS pengawasan dan pemeriksaan bersama. Langkah berikut yang mereka nyatakan: memakai data yang dipertukarkan "untuk menentukan sasaran pengawasan dan pemeriksaan bersama".</li>
+          <li>Pemerintah menyatakan akan menertibkan perusahaan yang tidak menanggung BPJS pekerjanya.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <footer class="foot"><div class="src">Sumber: Participant Guide §1; Merdeka, 19 Apr dan 19 Jun 2026; Antara Jatim, 2026; Aldiany dkk., JRIKUF 4(4); Kebumen Ekspres, Apr 2026; Perpres 59/2024 Pasal 42 ayat (1); detik, 7 Sep 2026; Kompas, 1 Jul 2026.</div><div class="where">Bagian 2. Masalah &amp; Urgensi<span>4 / 20</span></div></footer>
+</section>
+
+<!-- S05 -->
+<section class="slide" id="s05">
+  <h2>TEPAT mengubah data yang sudah dimiliki BPJS menjadi daftar tindak lanjut berprioritas, dengan alasan yang bisa diperiksa</h2>
+  <div class="body">
+    <ol class="flow">
+      <li><span class="n">1</span><b>Data BPJS yang sudah ada:</b> kepesertaan, iuran, file pertukaran BPJS Ketenagakerjaan, data pelayanan.</li>
+      <li><span class="n">2</span><b>TEPAT menghitung</b> sinyal per sub-mode dan perkiraan rupiah yang dapat dipulihkan.</li>
+      <li><span class="n">3</span><b>Pemeriksa menerima</b> daftar sesuai kapasitas jam bulan itu, lalu memutuskan.</li>
+    </ol>
+    <div class="cols c-46" style="gap:72px">
+      <div>
+        <h3>Untuk setiap pemberi kerja, pemeriksa melihat</h3>
+        <ul class="dots tight" style="font-size:24px">
+          <li>peringkat menurut rupiah yang dapat dipulihkan per jam pemeriksaan;</li>
+          <li>perkiraan rupiah dengan rentang, dipecah menjadi selisih iuran, biaya perawatan yang menjadi tanggung jawab pemberi kerja, dan biaya masa bebas iuran PHK;</li>
+          <li>tiga alasan teratas dalam bahasa sehari-hari, masing-masing dengan pasal dasarnya;</li>
+          <li>saran tindakan dan daftar dokumen yang perlu diminta.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Saran TEPAT di cabang uji (1.500 pemberi kerja, data sintetis)</h3>
+        <div class="bar" style="height:46px">
+          <i style="width:3.67%;background:var(--nav)"></i><i style="width:6.33%;background:var(--primary)"></i><i style="width:20%;background:var(--chart2)"></i><i style="width:1.27%;background:var(--amber)"></i><i style="width:30.13%;background:var(--baseline)"></i><i style="width:38.6%;background:var(--soft);box-shadow:inset 0 0 0 1px var(--border)"></i>
+        </div>
+        <div class="legend">
+          <span style="--sw:var(--nav)"><b>55</b> pemeriksaan lapangan</span>
+          <span style="--sw:var(--primary)"><b>95</b> pemeriksaan bersama BPJS Ketenagakerjaan</span>
+          <span style="--sw:var(--chart2)"><b>300</b> surat kepatuhan dengan kesempatan koreksi mandiri</span>
+          <span style="--sw:var(--amber)"><b>19</b> tawaran cicilan</span>
+          <span style="--sw:var(--baseline)"><b>452</b> dipantau</span>
+          <span style="--sw:var(--soft)"><b>579</b> jalur hijau</span>
+        </div>
+        <p style="margin-top:26px;font-size:24px">Untuk pekerja ada tampilan <b>Cek kepesertaan saya</b>: sudah didaftarkan atau belum, upah yang dilaporkan, dan apakah iuran sudah dibayar.</p>
+      </div>
+    </div>
+    <p class="key rule-top" style="margin-top:34px">TEPAT tidak menjatuhkan sanksi. Keputusan tetap di tangan pemeriksa.</p>
+  </div>
+  <footer class="foot"><div class="src">Angka saran: keluaran prototipe pada cabang uji B (seed 20261007).</div><div class="where">Bagian 3. Solusi &amp; Keunggulan<span>5 / 20</span></div></footer>
+</section>
+
+<!-- S06 -->
+<section class="slide" id="s06">
+  <h2>Satu kasus dari antrean cabang uji</h2>
+  <div class="body cols" style="grid-template-columns: 1fr 0.92fr; gap:72px">
+    <figure>
+      <div class="shot"><img src="assets/case-reasons.png" alt="Halaman Kasus perusahaan di aplikasi TEPAT untuk PT Baru Sejahtera: lima alasan dengan dasar hukum dan daftar dokumen pemeriksaan"></div>
+      <figcaption class="caption">Tampilan Kasus perusahaan di aplikasi TEPAT (data sintetis).</figcaption>
+    </figure>
+    <div class="stack" style="font-size:24px">
+      <div>
+        <p style="font-size:32px;font-weight:720;line-height:1.2">PT Baru Sejahtera (fiktif)</p>
+        <p class="muted" style="margin-top:6px">Usaha kecil, sektor perdagangan, Kab. Banyusari (fiktif). Peringkat 26 dari 1.500.</p>
+      </div>
+      <div>
+        <p>Perkiraan pemulihan <b>Rp46,5 juta</b> (rentang Rp21,8 juta s.d. Rp89,7 juta). Saran: <b>pemeriksaan lapangan</b>.</p>
+        <p style="margin-top:12px">Alasan terkuat: 7 pekerja baru didaftarkan ke BPJS Kesehatan paling lama 14 hari sebelum rawat inap, padahal BPJS Ketenagakerjaan mencatat mereka sudah bekerja sekitar 4 bulan sebelumnya.</p>
+      </div>
+      <div class="rule-top">
+        <h3>Mengapa penting</h3>
+        <p>Pemberi kerja yang belum mendaftarkan pekerjanya bertanggung jawab atas biaya pelayanan kesehatan pekerja itu (Perpres 82/2018 Pasal 13 ayat (5)).</p>
+      </div>
+      <div class="rule-top">
+        <h3>Yang tidak ditandai</h3>
+        <p>Pekerja baru yang memang sakit di minggu pertama. Sinyal ini hanya menyala bila BPJS Ketenagakerjaan mencatat pekerja itu sudah bekerja minimal 60 hari sebelum didaftarkan ke BPJS Kesehatan.</p>
+      </div>
+      <p class="muted small">Kunci jawaban simulasi: kasus ini memang ditanam sebagai pola "didaftarkan saat sakit". Kunci jawaban hanya ada di data sintetis; skorer tidak membacanya.</p>
+    </div>
+  </div>
+  <footer class="foot"><div class="src">Sumber: keluaran prototipe, cabang uji B (seed 20261007); Perpres 82/2018; PP 86/2013; Perpres 59/2024 Pasal 27; UU 24/2011 Pasal 15.</div><div class="where">Bagian 3. Solusi &amp; Keunggulan<span>6 / 20</span></div></footer>
+</section>
+
+<!-- S07 -->
+<section class="slide" id="s07">
+  <h2>Apa yang berubah dibanding cara sekarang</h2>
+  <div class="body">
+    <table class="t c22">
+      <thead><tr><th style="width:47%">Saat ini</th><th>Dengan TEPAT</th></tr></thead>
+      <tbody>
+        <tr><td class="muted">Data BPJS Kesehatan dan BPJS Ketenagakerjaan dicocokkan 4 kali setahun.</td><td>Hasil pencocokan langsung menjadi daftar tindak lanjut berprioritas, langkah yang dinyatakan BPJS sebagai berikutnya.</td></tr>
+        <tr><td class="muted">Pemeriksaan menyasar badan usaha yang "terindikasi"; cara mengurutkannya tidak dipublikasikan.</td><td>Setiap peringkat punya alasan, pasal, dan perkiraan rupiah dengan rentang, sehingga bisa diuji ulang.</td></tr>
+        <tr><td class="muted">Pemeriksaan bersama berfokus pada pendaftaran pekerja, kesesuaian upah, dan tunggakan.</td><td>Data pelayanan JKN ikut menjadi bukti: pendaftaran menjelang rawat inap, perawatan saat kepesertaan nonaktif, peserta mandiri di klinik milik perusahaan.</td></tr>
+        <tr><td class="muted">Di satu cabang, 25% s.d. 45% badan usaha yang dipanggil hadir saat pemeriksaan (Depok, 2021).</td><td>Tindakan mengikuti kekuatan bukti: surat untuk kasus sedang, kunjungan untuk kasus kuat, cicilan untuk yang tidak mampu bayar, jalur hijau untuk yang patuh.</td></tr>
+        <tr><td class="muted">Di luar negeri, INPS Italia (2026) menganalisis 33.732 pemberi kerja dan mengirim lebih dari 12.000 surat kepatuhan; inspektorat ketenagakerjaan Yunani melatih model pada 16,7 ribu hasil pemeriksaan.</td><td>TEPAT memakai pendekatan yang sudah berjalan di tingkat nasional, ditambah bukti dari data pelayanan kesehatan yang tidak dipakai kedua contoh itu.</td></tr>
+      </tbody>
+    </table>
+    <div class="cols why-bpjs" style="grid-template-columns: 300px 1fr 1fr 1fr; gap:40px; margin-top:30px; font-size:22px; line-height:1.4">
+      <h3 style="margin:0">Mengapa cocok untuk BPJS</h3>
+      <p>Tidak meminta data baru dari pemberi kerja.</p>
+      <p>Mengikuti tangga sanksi yang sudah ada, yang dimulai dari teguran tertulis (PP 86/2013).</p>
+      <p>Sejalan dengan arahan Healthkathon 2026: mulai dari masalah, deteksi dini, dan manusia yang memutuskan.</p>
+    </div>
+  </div>
+  <footer class="foot"><div class="src">Sumber: detik, 7 Sep 2026; Kebumen Ekspres, Apr 2026; Disnaker ESDM Bali, Des 2025; Sentani dan Syakurah, JKM Cendekia Utama 10(2); INPS, Mar 2026; MDPI Electronics 12(4):913; PP 86/2013; Liputan6, 14 Agu 2026.</div><div class="where">Bagian 3. Solusi &amp; Keunggulan<span>7 / 20</span></div></footer>
+</section>
+
+<!-- S08 -->
+<section class="slide" id="s08">
+  <h2>Data masukan: semuanya sudah ada di BPJS atau dipertukarkan lewat PKS</h2>
+  <div class="body">
+    <table class="t c22">
+      <thead><tr><th style="width:50%">Data</th><th style="width:24%">Pemilik</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Kepesertaan PPU per pekerja: NIK, tanggal mulai dan berakhir, alasan keluar, upah yang dilaporkan</td><td>BPJS Kesehatan</td><td>sudah dimiliki</td></tr>
+        <tr><td>Tagihan dan pembayaran iuran per bulan, per lembaga</td><td>BPJS Kesehatan; data BPJS TK lewat PKS</td><td>sudah dimiliki; data BPJS TK perlu disepakati</td></tr>
+        <tr><td>File pertukaran BPJS Ketenagakerjaan per kuartal: NIK, nama, upah, tanggal mulai kerja</td><td>BPJS Ketenagakerjaan, lewat PKS</td><td>dipertukarkan 4 kali setahun; isi kolomnya belum kami ketahui</td></tr>
+        <tr><td>Peristiwa pelayanan: tanggal, rawat jalan atau inap, biaya, status kepesertaan. <b>Tanpa diagnosis</b></td><td>BPJS Kesehatan</td><td>sudah dimiliki</td></tr>
+        <tr><td>Segmen peserta, data keluarga, perpindahan segmen</td><td>BPJS Kesehatan</td><td>sudah dimiliki</td></tr>
+        <tr><td>Registri FKTP, termasuk klinik milik perusahaan</td><td>BPJS Kesehatan</td><td>sudah dimiliki</td></tr>
+        <tr><td>Registri badan usaha: NIB, sektor, skala, jumlah pekerja yang dinyatakan di OSS</td><td>BPJS Kesehatan, OSS</td><td>sebagian; integrasi OSS perlu dikonfirmasi</td></tr>
+        <tr><td>UMK per kabupaten/kota</td><td>publik</td><td>tersedia</td></tr>
+        <tr><td>Jam pemeriksaan per skala usaha</td><td>asumsi kami: 3, 6, 12, dan 24 jam</td><td>perlu dikalibrasi bersama BPJS</td></tr>
+      </tbody>
+    </table>
+    <p class="small" style="margin-top:22px">Di prototipe, semua tabel ini dibuat oleh generator sintetis dengan struktur yang sama; tidak ada data JKN riil. Batas bawah UMK hanya diterapkan pada usaha menengah dan besar, karena Perpres 59/2024 Pasal 32 ayat (4) mengecualikan usaha mikro dan kecil.</p>
+  </div>
+  <footer class="foot"><div class="src">Sumber: detik, 7 Sep 2026; Perpres 59/2024 Pasal 32.</div><div class="where">Bagian 4. Pendekatan Teknis &amp; Data<span>8 / 20</span></div></footer>
+</section>
+
+<!-- S09 -->
+<section class="slide" id="s09">
+  <h2>Proses dan model: aturan biasa di mana cukup, model di mana perlu</h2>
+  <div class="body cols" style="grid-template-columns: 0.72fr 1.28fr; gap:64px; font-size:23px">
+    <ol class="steps" style="padding-left:1.25em">
+      <li><b>Pencocokan pekerja lintas BPJS.</b> NIK salah ketik dan variasi nama dicocokkan dengan jarak Hamming pada NIK dan kemiripan nama.</li>
+      <li><b>Sekitar 25 sinyal per pemberi kerja</b>, dikelompokkan per sub-mode.</li>
+      <li><b>Perkiraan rupiah per komponen:</b> selisih iuran, biaya perawatan saat kepesertaan nonaktif, masa bebas iuran PHK.</li>
+      <li><b>Regresi logistik</b> menggabungkan sinyal menjadi peluang pelanggaran. Dilatih pada 600 pemberi kerja (40%) dari cabang latih sebagai "hasil pemeriksaan masa lalu".</li>
+      <li><b>Prioritas:</b> peluang pelanggaran dikali perkiraan rupiah, dibagi jam pemeriksaan.</li>
+      <li><b>Aturan tindakan</b> memilih surat, kunjungan, pemeriksaan bersama, atau cicilan.</li>
+    </ol>
+    <div>
+      <h3>Di mana AI dipakai, dan di mana tidak</h3>
+      <table class="t c22" style="font-size:21px">
+        <thead><tr><th style="width:42%">Bagian</th><th style="width:21%">Cara</th><th>Alasan</th></tr></thead>
+        <tbody>
+          <tr><td>Selisih jumlah pekerja BPJS TK dan BPJS Kesehatan; upah di bawah UMK; bayar BPJS TK tetapi tidak BPJS Kesehatan; pendaftaran menjelang rawat inap; PHK lalu rekrut ulang; tanggungan yang ternyata bekerja</td><td class="lead">aturan biasa, sengaja</td><td>setiap aturan memetakan satu kewajiban hukum dan mudah dijelaskan kepada pemberi kerja</td></tr>
+          <tr><td>Pencocokan identitas lintas lembaga</td><td class="lead">pencocokan fuzzy</td><td>NIK salah ketik dan ejaan nama yang berbeda lolos dari pencocokan persis</td></tr>
+          <tr><td>Pola upah dibanding sektor dan skala sejenis</td><td class="lead">model pembanding</td><td>under-reporting upah tidak melanggar satu angka batas</td></tr>
+          <tr><td>Penggabungan sinyal</td><td class="lead">regresi logistik</td><td>koefisiennya bisa dibaca, data latih kecil, dan setiap peringkat harus bisa dijelaskan</td></tr>
+          <tr><td>Draf surat kepatuhan</td><td class="lead">LLM, belum dipakai</td><td>rencana: hanya menulis dari alasan yang sudah terstruktur, tidak pernah menilai atau memutuskan</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <footer class="foot"><div class="src">Sumber: kode prototipe TEPAT (scorer, pelatihan model pada cabang A).</div><div class="where">Bagian 4. Pendekatan Teknis &amp; Data<span>9 / 20</span></div></footer>
+</section>
+
+<!-- S10 -->
+<section class="slide" id="s10">
+  <h2>Keluaran, arsitektur, dan keamanan</h2>
+  <div class="body" style="font-size:23px">
+    <div class="cols" style="grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--ink)">
+      <div style="padding:16px 32px 0 0"><h3>Pemeriksa cabang</h3><p>Daftar prioritas sesuai kapasitas jam, halaman kasus berisi alasan, pasal, grafik pembayaran, dan dokumen yang perlu diminta.</p></div>
+      <div style="padding:16px 32px 0;border-left:1px solid var(--border)"><h3>Kepala cabang</h3><p>Tampilan keadilan (siapa yang terpilih per sektor, wilayah, dan skala) dan jalur acak.</p></div>
+      <div style="padding:16px 0 0 32px;border-left:1px solid var(--border)"><h3>Pekerja</h3><p>Cek kepesertaan saya, dengan tombol untuk melapor.</p></div>
+    </div>
+    <div class="rule-top" style="margin-top:30px">
+      <h3>Alur penerapan yang kami rancang</h3>
+      <p>Data BPJS di lingkungan BPJS, lalu NIK disamarkan, pembentukan sinyal, model, daftar dan kasus, keputusan pemeriksa, dan hasil pemeriksaan kembali menjadi data latih.</p>
+    </div>
+    <table class="t c22" style="margin-top:28px">
+      <thead><tr><th style="width:74%">Pengaman</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Skorer hanya membaca data yang memang bisa dilihat BPJS, tidak pernah kunci jawaban simulasi</td><td class="lead">sudah dibangun, diuji otomatis</td></tr>
+        <tr><td>Data pelayanan yang dipakai hanya tanggal, jenis, biaya, dan status kepesertaan; tanpa diagnosis</td><td class="lead">sudah dibangun</td></tr>
+        <tr><td>Pemrosesan di dalam lingkungan BPJS; tidak ada data yang keluar</td><td class="muted">rancangan penerapan</td></tr>
+        <tr><td>NIK disamarkan di tahap sinyal; identitas dibuka hanya di halaman kasus untuk pemeriksa yang berwenang</td><td class="muted">rancangan penerapan</td></tr>
+        <tr><td>Akses per peran dan log setiap kali kasus dibuka</td><td class="muted">rancangan penerapan</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <footer class="foot"><div class="src">Sumber: aplikasi dan uji otomatis prototipe TEPAT; UU 27/2022.</div><div class="where">Bagian 4. Pendekatan Teknis &amp; Data<span>10 / 20</span></div></footer>
+</section>
+
+<!-- S11 -->
+<section class="slide" id="s11">
+  <h2>Tahap Prototype: fitur utama berfungsi dan bisa dicoba</h2>
+  <div class="body cols" style="grid-template-columns: 1.05fr 1fr; gap:64px; font-size:23px">
+    <figure>
+      <div class="shot"><img src="assets/queue.png" alt="Tampilan Daftar prioritas di aplikasi TEPAT: ringkasan anggaran, kapasitas jam pemeriksaan, dan tabel perusahaan berperingkat"></div>
+      <figcaption class="caption">Daftar prioritas, cabang uji B. Coba sendiri: <a href="https://tepat-jkp.streamlit.app">tepat-jkp.streamlit.app</a></figcaption>
+    </figure>
+    <div>
+      <p class="muted" style="margin-bottom:20px">Ide, Mockup, <b style="color:var(--ink)">Prototype</b>, MVP, Produk</p>
+      <ul class="dots" style="line-height:1.38">
+        <li><b>Generator data sintetis:</b> 3 cabang fiktif, masing-masing 1.500 pemberi kerja dan 105 ribu s.d. 118 ribu pekerja, selama 24 bulan (Oktober 2024 s.d. September 2026). Pelanggaran ditanam per sub-mode, ditambah pemberi kerja jujur yang sengaja dibuat mirip pelanggar.</li>
+        <li><b>Skorer:</b> sinyal, perkiraan rupiah dengan rentang, alasan, saran tindakan, antrean cicilan.</li>
+        <li><b>Benchmark</b> dengan anggaran jam pemeriksaan yang sama untuk semua metode.</li>
+        <li><b>Aplikasi web, lima tampilan:</b> Daftar prioritas, Kasus perusahaan, Benchmark, Keadilan &amp; jalur acak, Cek kepesertaan saya.</li>
+        <li><b>53 uji otomatis</b>, termasuk uji bahwa skorer tidak pernah membaca kunci jawaban.</li>
+      </ul>
+      <p class="rule-top" style="margin-top:24px"><b>Di mana diuji:</b> hanya uji internal pada data sintetis. Belum ada uji coba dengan pengguna nyata atau data nyata.</p>
+    </div>
+  </div>
+  <footer class="foot"><div class="src">Sumber: repositori prototipe TEPAT (generator, uji otomatis, aplikasi).</div><div class="where">Bagian 5. Tingkat Kematangan<span>11 / 20</span></div></footer>
+</section>
+
+<!-- S12 -->
+<section class="slide" id="s12">
+  <h2>Dengan jam pemeriksaan yang sama, TEPAT memulihkan 2,3 kali rupiah per jam dibanding aturan saja</h2>
+  <div class="body">
+    <p class="muted small" style="margin-bottom:18px">Anggaran sama untuk semua metode: 10% dari total jam pemeriksaan. Cabang uji tidak dipakai untuk melatih. Rata-rata 5 seed, rentang antar-seed dalam kurung.</p>
+    <table class="t" style="font-size:26px">
+      <thead><tr><th style="width:24%">Metode</th><th class="num">Presisi</th><th class="num">Rp dipulihkan per jam pemeriksaan</th><th class="num">Pemberi kerja jujur ikut terpilih</th></tr></thead>
+      <tbody>
+        <tr class="lo"><td>Acak</td><td class="num">20%</td><td class="num">Rp1,1 juta</td><td class="num">10,0%</td></tr>
+        <tr class="lo"><td>Aturan saja</td><td class="num">35%</td><td class="num">Rp3,9 juta</td><td class="num">4,0%</td></tr>
+        <tr class="lo"><td>TEPAT v1</td><td class="num">93%</td><td class="num">Rp8,3 juta</td><td class="num">0,5%</td></tr>
+        <tr class="lo"><td>TEPAT v2</td><td class="num">88%</td><td class="num">Rp8,5 juta</td><td class="num">1,0%</td></tr>
+        <tr class="hi"><td>TEPAT v2.1</td><td class="num">95% (93 s.d. 97)</td><td class="num">Rp8,9 juta (7,1 s.d. 11,1)</td><td class="num">0,4% (0,2 s.d. 0,7)</td></tr>
+      </tbody>
+    </table>
+    <div class="cols c-2" style="gap:72px;margin-top:30px;font-size:23px">
+      <ul class="dots tight">
+        <li>2,3 kali aturan saja (1,9 s.d. 3,7 kali antar-seed) dan 8 kali pemilihan acak.</li>
+        <li>Cabang bergeser (campuran sektor berbeda, lebih banyak pemberi kerja jujur yang mirip pelanggar, pola yang tidak pernah dilatih): 2,1 kali aturan saja, 7,7 kali acak.</li>
+        <li>Tidak pernah kalah dari aturan saja di 80 kombinasi seed, pengaturan, dan cabang. Terendah 1,18 kali.</li>
+      </ul>
+      <ul class="dots tight">
+        <li><b>Recall terbatas oleh anggaran:</b> di seed utama ada 306 pelanggar dan jam cukup untuk 108 pemeriksaan, jadi paling banyak sekitar 35% pelanggar bisa diperiksa. TEPAT mencapai 34%.</li>
+        <li>v2.1 berbeda dari v2 karena pemberi kerja yang tampak tidak mampu bayar dialihkan ke antrean cicilan.</li>
+      </ul>
+    </div>
+    <p class="small muted" style="margin-top:20px">Semua angka adalah hasil metode pada data sintetis dengan asumsi kami sendiri, bukan perkiraan pemulihan nasional.</p>
+  </div>
+  <footer class="foot"><div class="src">Sumber: benchmark multi-seed dan uji sensitivitas TEPAT, 10 Okt 2026 (5 seed; cabang uji B dan cabang bergeser C).</div><div class="where">Bagian 5. Tingkat Kematangan<span>12 / 20</span></div></footer>
+</section>
+
+<!-- S13 -->
+<section class="slide" id="s13">
+  <h2>Rencana dan kelayakan</h2>
+  <div class="body">
+    <div class="phases">
+      <div><h3>0. Prototipe</h3><p class="when">selesai, Oktober 2026</p><p class="what">Generator, skorer, benchmark 5 seed, aplikasi publik.</p><p class="out"><b>Deliverable</b>Tautan demo, laporan benchmark.</p></div>
+      <div><h3>1. Hackathon</h3><p class="when">sekitar 3 minggu</p><p class="what">Kalibrasi asumsi bersama mentor BPJS (jam pemeriksaan, periode pemulihan, isi file pertukaran); alur surat dan jalur hijau di aplikasi; sinyal baru untuk sub-mode yang masih lemah.</p><p class="out"><b>Deliverable</b>TEPAT v3, benchmark ulang dengan asumsi terkalibrasi, draf DPIA.</p></div>
+      <div><h3>2. Uji coba bayangan</h3><p class="when">3 bulan, bila BPJS bersedia</p><p class="what">TEPAT berjalan berdampingan dengan proses yang ada di 1 s.d. 2 kantor cabang, pada data riil di lingkungan BPJS, tanpa mengubah keputusan. Ditambah pencocokan OSS/NIB untuk badan usaha yang belum terdaftar sama sekali.</p><p class="out"><b>Deliverable</b>Laporan perbandingan hasil pemeriksaan, DPIA final.</p></div>
+      <div><h3>3. Perluasan</h3><p class="when">setelah fase 2</p><p class="what">Lebih banyak cabang; model dilatih ulang tiap kuartal mengikuti siklus pertukaran data.</p><p class="out"><b>Deliverable</b>Panduan operasional, dasbor pemantauan model.</p></div>
+    </div>
+    <div class="cols c-2 rule-top res" style="gap:72px;margin-top:34px;font-size:23px">
+      <p><b>Sumber daya:</b> tim 3 orang (data dan model, regulasi, produk); perangkat lunak terbuka (Python) yang berjalan di server biasa; akses data hanya lewat BPJS dengan DPIA; mitra: mentor tim pemeriksaan kepatuhan BPJS Kesehatan dan BPJS Ketenagakerjaan.</p>
+      <p>Fase 2 dan seterusnya membutuhkan pemilik dari pihak BPJS. Kami siswa SMA dan tidak mengklaim bisa menjalankannya sendiri.</p>
+    </div>
+  </div>
+  <footer class="foot"><div class="src">Durasi hackathon mengikuti Participant Guide (sekitar 3 minggu, jadwal belum diumumkan). PP 33/2026 berlaku 16 Januari 2027.</div><div class="where">Bagian 6. Rencana &amp; Kelayakan<span>13 / 20</span></div></footer>
+</section>
+
+<!-- S14 -->
+<section class="slide" id="s14">
+  <h2>Sebelum dan sesudah, diukur pada benchmark sintetis</h2>
+  <div class="body cols" style="grid-template-columns: 1.15fr 1fr; gap:80px">
+    <div>
+      <p class="muted small" style="margin-bottom:16px">Ini estimasi, bukan hasil lapangan.</p>
+      <table class="t">
+        <thead><tr><th style="width:44%">Ukuran</th><th>Sebelum (aturan saja)</th><th>Sesudah (TEPAT v2.1)</th></tr></thead>
+        <tbody>
+          <tr><td>Rp dipulihkan per jam pemeriksaan</td><td class="muted">Rp3,9 juta</td><td class="lead">Rp8,9 juta</td></tr>
+          <tr><td>Pemeriksaan yang menemukan pelanggaran</td><td class="muted">35%</td><td class="lead">95%</td></tr>
+          <tr><td>Pemberi kerja jujur yang ikut diperiksa</td><td class="muted">4,0%</td><td class="lead">0,4%</td></tr>
+          <tr><td>Pemberi kerja yang tampak tidak mampu bayar</td><td class="muted">ikut diperiksa</td><td class="lead">ditawari cicilan (19 di cabang uji)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="side" style="font-size:24px">
+      <h3>Kapan keunggulannya besar, kapan kecil</h3>
+      <p class="muted small" style="margin-bottom:14px">Uji satu asumsi per kali.</p>
+      <ul class="dots">
+        <li>Paling besar saat jam pemeriksaan langka: anggaran 5% memberi 2,8 kali aturan saja.</li>
+        <li>Mengecil bila jam pemeriksaan sama untuk semua ukuran perusahaan (1,4 kali) atau anggaran 20% (1,6 kali). Asumsi jam pemeriksaan per skala menentukan besarnya keunggulan.</li>
+        <li>Bila hanya 5% pemberi kerja melanggar, presisi turun ke 34%, dan TEPAT memilih sedikit lebih banyak pemberi kerja jujur dibanding aturan (5,2% berbanding 3,9%). Dalam keadaan itu anggaran pemeriksaan sebaiknya dikurangi.</li>
+      </ul>
+      <p class="rule-top" style="margin-top:26px">Kami tidak memproyeksikan angka ini ke tingkat nasional, karena prevalensi pelanggaran dan jam pemeriksaan yang sebenarnya belum diketahui.</p>
+    </div>
+  </div>
+  <footer class="foot"><div class="src">Sumber: benchmark multi-seed dan uji sensitivitas TEPAT, 10 Okt 2026.</div><div class="where">Bagian 7. Dampak &amp; Nilai<span>14 / 20</span></div></footer>
+</section>
+
+<!-- S15 -->
+<section class="slide" id="s15">
+  <h2>Nilai bagi tiap pihak, dan mana yang sudah terukur</h2>
+  <div class="body">
+    <table class="t c22">
+      <thead><tr><th style="width:20%">Pihak</th><th style="width:56%">Nilai</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="lead">Pekerja</td><td>Terdaftar dengan upah yang benar; bisa mengecek sendiri; lebih kecil kemungkinan kepesertaannya nonaktif karena tunggakan pemberi kerja.</td><td>dirancang; cek mandiri sudah ada di demo</td></tr>
+        <tr><td class="lead">BPJS Kesehatan</td><td>Jam pemeriksa dipakai untuk kasus dengan potensi pemulihan terbesar; setiap keputusan terdokumentasi.</td><td>terukur di benchmark sintetis</td></tr>
+        <tr><td class="lead">Pemberi kerja patuh</td><td>Jalur hijau, lebih jarang dipanggil.</td><td>terukur di benchmark sintetis</td></tr>
+        <tr><td class="lead">Pemberi kerja yang kesulitan</td><td>Ditawari cicilan sebelum penindakan.</td><td>sudah ada di prototipe</td></tr>
+        <tr><td class="lead">Faskes</td><td>Lebih sedikit pasien PPU yang statusnya nonaktif saat dilayani.</td><td class="muted">harapan, belum diukur</td></tr>
+        <tr><td class="lead">Sistem JKN</td><td>Iuran PPU lebih lengkap, mendukung target cakupan aktif 83,5% dalam RPJMN 2025 s.d. 2029.</td><td class="muted">harapan, belum diukur</td></tr>
+      </tbody>
+    </table>
+    <p class="measure" style="margin-top:30px;font-size:23px"><b>Cara mengukur di uji coba:</b> rupiah dipulihkan per jam pemeriksaan; persentase pemeriksaan yang menemukan pelanggaran; waktu persiapan per kasus; persentase pemberi kerja yang melakukan koreksi mandiri setelah menerima surat; persentase pemberi kerja jujur yang terpilih; jalur acak (8% jam pemeriksaan) sebagai pembanding yang tidak bias.</p>
+  </div>
+  <footer class="foot"><div class="src">Sumber: Perpres 59/2024 Pasal 42; CNBC Indonesia, 8 Apr 2026.</div><div class="where">Bagian 7. Dampak &amp; Nilai<span>15 / 20</span></div></footer>
+</section>
+
+<!-- S16 -->
+<section class="slide" id="s16">
+  <h2>Pelindungan data pribadi</h2>
+  <div class="body">
+    <table class="t c22" style="font-size:23px">
+      <thead><tr><th style="width:28%">Ketentuan</th><th>Cara TEPAT memenuhinya</th></tr></thead>
+      <tbody>
+        <tr><td class="lead">Data sintetis saja</td><td>Prototipe, demo, dan proposal tidak memakai data peserta JKN riil.</td></tr>
+        <tr><td class="lead">Dasar pemrosesan</td><td>Saat diterapkan: kewajiban hukum dan pelaksanaan tugas pelayanan publik (UU 27/2022 Pasal 20 ayat (2) huruf c dan e), dalam kerangka pengawasan kepatuhan pemberi kerja yang diatur Peraturan BPJS Kesehatan 3/2019.</td></tr>
+        <tr><td class="lead">Klasifikasi data</td><td>Data kesehatan adalah data pribadi spesifik (Pasal 4 ayat (2) huruf a); upah adalah data pribadi umum. TEPAT hanya memakai tanggal, jenis, biaya, dan status kepesertaan dari data pelayanan, tanpa diagnosis.</td></tr>
+        <tr><td class="lead">DPIA</td><td>Wajib, karena TEPAT melakukan penilaian (scoring) dan pencocokan dataset (Pasal 34). PP 33/2026 yang merinci DPIA berlaku mulai 16 Januari 2027, sebelum uji coba mana pun.</td></tr>
+        <tr><td class="lead">Pengendali bersama</td><td>BPJS Kesehatan dan BPJS Ketenagakerjaan perlu perjanjian pengendali bersama (Pasal 18). PKS 7 September 2026 adalah tempat yang wajar untuk mengaturnya.</td></tr>
+        <tr><td class="lead">Bukan keputusan otomatis</td><td>Subjek data berhak keberatan atas keputusan yang semata-mata otomatis (Pasal 10). Di TEPAT, setiap tindakan diputuskan pemeriksa.</td></tr>
+        <tr><td class="lead">Kewajiban lain</td><td>Pemberitahuan kegagalan pelindungan data dalam 3 x 24 jam (Pasal 46) dan pejabat pelindungan data pribadi (Pasal 53).</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <footer class="foot"><div class="src">Sumber: UU 27/2022; PP 33/2026 (Bisnis, 29 Agu 2026); detik, 7 Sep 2026; Aldiany dkk., JRIKUF 4(4).</div><div class="where">Bagian 8. Risiko, Privasi &amp; Etika<span>16 / 20</span></div></footer>
+</section>
+
+<!-- S17 -->
+<section class="slide" id="s17">
+  <h2>AI, bias, dan tiga risiko utama</h2>
+  <div class="body">
+    <p class="key" style="font-size:27px;margin-bottom:26px">TEPAT mengusulkan, pemeriksa memutuskan. Alasan dan keputusan dicatat. Surat kepatuhan tidak bernada menuduh dan memberi kesempatan koreksi mandiri.</p>
+    <table class="t c22" style="font-size:21px">
+      <thead><tr><th style="width:30%">Risiko</th><th style="width:30%">Mengapa nyata di TEPAT</th><th>Mitigasi</th></tr></thead>
+      <tbody>
+        <tr><td><b>1. Pemberi kerja jujur ikut terpilih, atau label "tidak mau bayar" salah.</b> Label ini bisa mengarah ke Pasal 55 UU 24/2011, yang membawa ancaman pidana.</td><td>Kelompok yang paling sering salah terpilih adalah pemberi kerja yang sedang kesulitan kas: 13% dari kelompok ini masih masuk daftar di cabang uji.</td><td>Antrean cicilan untuk yang terlambat di kedua BPJS; surat sebelum kunjungan; rujukan ke Pasal 55 tidak pernah otomatis; persentase pemberi kerja jujur yang terpilih dipantau tiap siklus.</td></tr>
+        <tr><td><b>2. Bias terhadap sektor, wilayah, atau skala tertentu, dan model hanya belajar dari kasus yang dulu dipilih.</b></td><td>Data latih berasal dari hasil pemeriksaan, dan yang diperiksa adalah yang dulu dipilih.</td><td>Tampilan Keadilan memantau tingkat terpilih per sektor, wilayah, dan skala; 8% jam pemeriksaan untuk pilihan acak terstratifikasi. Batas: di cabang uji jalur acak hanya 15 s.d. 16 pemeriksaan, terlalu sedikit untuk mengukur prevalensi dari satu siklus.</td></tr>
+        <tr><td><b>3. Asumsi sintetis tidak sesuai kenyataan, atau pemberi kerja menyesuaikan perilaku.</b></td><td>Prevalensi, jam pemeriksaan, dan periode pemulihan adalah asumsi kami.</td><td>Uji coba bayangan sebelum dipakai; kalibrasi ulang tiap kuartal; cabang bergeser sudah menguji pola yang tidak pernah dilatih (tetap 2,1 kali aturan saja).</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <footer class="foot"><div class="src">Sumber: benchmark multi-seed TEPAT, 10 Okt 2026; UU 24/2011 Pasal 55 jo. UU 1/2026.</div><div class="where">Bagian 8. Risiko, Privasi &amp; Etika<span>17 / 20</span></div></footer>
+</section>
+
+<!-- S18 -->
+<section class="slide" id="s18">
+  <h2>Tim Johannes Kepler, SMA Negeri 34 Jakarta</h2>
+  <div class="body">
+    <div class="team">
+      <div><p class="name">Rabbani Putrowi</p><p class="role">Ketua; data dan model</p><p>Membangun generator data sintetis, skorer, benchmark, dan aplikasi demo.</p></div>
+      <div><p class="name">Raffa Maliq Revaya</p><p class="role">Regulasi dan riset kepatuhan <span class="ph">konfirmasi</span></p><p><span class="ph">isi: apa yang dikerjakan</span></p></div>
+      <div><p class="name">Ahmad Fahri Fauzi</p><p class="role">Produk, UX, dan pitch <span class="ph">konfirmasi</span></p><p><span class="ph">isi: apa yang dikerjakan</span></p></div>
+    </div>
+    <div class="cols c-2 rule-top" style="gap:80px;margin-top:56px">
+      <div><h3>Mengapa tim ini bisa mengeksekusi</h3><p>Prototipe sudah berjalan dan bisa dicoba lewat tautan; hasilnya diuji ulang dengan 5 seed dan uji sensitivitas; setiap angka di proposal punya sumber.</p></div>
+      <div><h3>Yang tidak kami klaim</h3><p>Kami siswa SMA dan tidak punya pengalaman kerja di BPJS. Karena itu kami membutuhkan mentor dari tim pemeriksaan kepatuhan untuk mengkalibrasi asumsi.</p></div>
+    </div>
+    <p class="small" style="margin-top:34px"><span class="ph">kredensial yang bisa diverifikasi, bila ada: lomba, sertifikat, tautan portofolio</span></p>
+  </div>
+  <footer class="foot"><div class="src">Tim beranggotakan 3 orang, sesuai ketentuan 1 s.d. 3 orang per tim.</div><div class="where">Bagian 9. Profil Tim<span>18 / 20</span></div></footer>
+</section>
+
+<!-- S19 -->
+<section class="slide" id="s19">
+  <h2>Asumsi dan batasan yang kami nyatakan terbuka</h2>
+  <div class="body" style="font-size:25px">
+    <ul class="dots" style="max-width:1560px">
+      <li><b>Semua hasil berasal dari data sintetis dengan asumsi kami:</b> 20% pemberi kerja melanggar; jam pemeriksaan 3, 6, 12, dan 24 jam per skala usaha; periode pemulihan 12 bulan (diuji 6 s.d. 24 bulan; Perpres 59/2024 Pasal 42 ayat (3) membatasi tunggakan 24 bulan).</li>
+      <li><b>Badan usaha yang sama sekali belum terdaftar di BPJS Kesehatan maupun BPJS Ketenagakerjaan tidak terlihat oleh TEPAT.</b> Di Tulungagung, 676 dari 1.092 badan usaha yang terdata belum mendaftarkan pekerjanya. Pencocokan OSS/NIB masuk fase 2.</li>
+      <li><b>Sub-mode yang masih lemah</b> (recall TEPAT v2.1, rata-rata 5 seed): pekerja yang tidak tercatat di kedua BPJS 8%, upah lebih rendah dari pola sektor 21%, pekerja dikeluarkan sebelum berhenti 21%, penskalaan upah yang tidak pernah dilatih 9% (cabang bergeser).</li>
+      <li><b>Rentang rupiah sedikit terlalu lebar:</b> 89% nilai sebenarnya jatuh di dalam rentang 10 s.d. 90 persen, padahal targetnya sekitar 80%.</li>
+      <li><b>Isi kolom file pertukaran BPJS Ketenagakerjaan belum kami ketahui.</b> Prototipe mengasumsikan NIK, nama, upah, dan tanggal mulai kerja per pekerja.</li>
+      <li><b>Sinyal lintas-BPJS di v2 hanya menambah 3% rupiah per jam dibanding v1</b>, dan rentang antar-seed melewati nol. Nilainya ada pada alasan dan pilihan tindakan, bukan pada peringkat.</li>
+    </ul>
+  </div>
+  <footer class="foot"><div class="src">Sumber: spesifikasi data sintetis dan benchmark multi-seed TEPAT; Perpres 59/2024 Pasal 42; Merdeka, 19 Jun 2026.</div><div class="where">Asumsi dan batasan<span>19 / 20</span></div></footer>
+</section>
+
+<!-- S20 -->
+<section class="slide" id="s20">
+  <h2>Sumber</h2>
+  <div class="body sources">
+    <h3>Pengelola program dan kompetisi</h3>
+    <ul>
+      <li><a href="https://healthkathon.bpjs-kesehatan.go.id/">Participant Guide dan Panduan Pembuatan Proposal Healthkathon 2026</a></li>
+      <li><a href="https://www.liputan6.com/health/read/8270049/healthkathon-2026-digelar-bpjs-kesehatan-dorong-pemanfaatan-ai-untuk-perkuat-jkn">Liputan6, 14 Agu 2026: arahan Healthkathon 2026</a></li>
+    </ul>
+    <h3>Keuangan dan kepesertaan JKN</h3>
+    <ul>
+      <li><a href="https://nasional.kontan.co.id/news/gap-arus-kas-bpjs-kesehatan-capai-rp-14-triliun-pemerintah-kucurkan-rp-20-triliun">Kontan, 28 Sep 2026: selisih arus kas Rp14 triliun</a></li>
+      <li><a href="https://money.kompas.com/read/2026/09/16/135037326/dana-jkn-defisit-rp-2-triliun-per-bulan-dirut-bpjs-kesehatan-ungkap-biang-keroknya">Kompas, 16 Sep 2026: biaya pelayanan 2019 s.d. 2025</a></li>
+      <li><a href="https://www.kompas.id/artikel/en-tunggakan-iuran-bpjs-kesehatan-capai-rp-2148-triliun-terbanyak-dari-peserta-mandiri">Kompas.id, Feb 2025: tunggakan iuran Rp21,48 triliun</a></li>
+      <li><a href="https://www.antaranews.com/berita/5172705/bpjs-kesehatan-badan-usaha-berperan-penting-perkuat-cakupan-jkn">Antara, 14 Okt 2025: 67,2 juta peserta PPU</a></li>
+      <li><a href="https://www.cnbcindonesia.com/news/20260408181044-4-725070/bos-bpjs-kesehatan-sebut-peserta-jkn-2846-juta-capai-9874-penduduk">CNBC Indonesia, 8 Apr 2026: kepesertaan dan target RPJMN</a></li>
+    </ul>
+    <h3>Kepatuhan pemberi kerja</h3>
+    <ul>
+      <li><a href="https://news.detik.com/berita/d-8652829/duo-bpjs-perkuat-sinergi-pastikan-pekerja-terlindungi-jaminan-sosial">detik, 7 Sep 2026: PKS pengawasan dan pemeriksaan bersama</a></li>
+      <li><a href="https://www.merdeka.com/peristiwa/bpjs-kesehatan-identifikasi-perusahaan-belum-patuh-jaminan-kesehatan-pekerja-564865-mvk.html">Merdeka, 19 Apr 2026: 1.544 perusahaan diperiksa</a></li>
+      <li><a href="https://www.merdeka.com/peristiwa/bpjs-kesehatan-tulungagung-ratusan-badan-usaha-sudah-daftarkan-pekerja-ke-program-jkn-584734-mvk.html">Merdeka, 19 Jun 2026</a>, dan <a href="https://jatim.antaranews.com/berita/1075348/bpjs-kesehatan-416-badan-usaha-daftarkan-pekerja-sebagai-peserta-jkn">Antara Jatim</a>: Tulungagung</li>
+      <li><a href="https://nasional.kompas.com/read/2026/07/01/19030081/pemerintah-bakal-tertibkan-perusahaan-yang-tak-tanggung-bpjs-karyawannya">Kompas, 1 Jul 2026: penertiban perusahaan</a></li>
+      <li><a href="https://doi.org/10.57213/jrikuf.v4i4.1231">Aldiany dkk., JRIKUF 4(4), doi.org/10.57213/jrikuf.v4i4.1231</a></li>
+      <li><a href="https://disnakeresdm.baliprov.go.id/pemeriksaan-kepatuhan-badan-usaha">Disnaker ESDM Bali, Des 2025</a>; <a href="https://www.kebumenekspres.com/2026/04/periksa-badan-usaha-bpjs-kesehatan.html">Kebumen Ekspres, Apr 2026</a></li>
+      <li><a href="https://jurnal.stikescendekiautamakudus.ac.id/index.php/JKM/article/download/916/438">Sentani dan Syakurah, JKM Cendekia Utama 10(2), 2022</a></li>
+    </ul>
+    <h3>Pembanding luar negeri</h3>
+    <ul>
+      <li><a href="https://www.inps.it/it/it/inps-comunica/notizie/dettaglio-news-page.news.2026.03.indici-affidabilit-contributiva-isac-per-il-contrasto-al-sommerso.html">INPS, Mar 2026, dan Circolare INPS 26/2026: ISAC</a></li>
+      <li><a href="https://mdpi.com/2079-9292/12/4/913">MDPI Electronics 12(4):913, 2023</a></li>
+    </ul>
+    <h3>Regulasi</h3>
+    <ul>
+      <li><a href="https://www.bpjsketenagakerjaan.go.id/assets/uploads/peraturan/09012015_101207_uu_24_11_bpjs.pdf">UU 24/2011 Pasal 15, 19, 55</a>; <a href="https://peraturan.bpk.go.id/Details/337869/uu-no-1-tahun-2026">UU 1/2026 Lampiran no. 93</a></li>
+      <li><a href="https://peraturan.bpk.go.id/Details/229798/uu-no-27-tahun-2022">UU 27/2022 tentang Pelindungan Data Pribadi</a>; <a href="https://teknologi.bisnis.com/read/20260829/84/1999753/aturan-turunan-uu-pdp-persetujuan-data-konsumen-lebih-ketat">PP 33/2026</a></li>
+      <li><a href="https://peraturan.bpk.go.id/Details/5421/pp-no-86-tahun-2013">PP 86/2013</a></li>
+      <li><a href="https://jdih.bpkp.go.id/dokumen/data_dokumen/Perpres%20Nomor%2082%20Tahun%202018.pdf">Perpres 82/2018 Pasal 13 dan 14</a>; <a href="https://peraturan.bpk.go.id/Details/285181/perpres-no-59-tahun-2024">Perpres 59/2024 Pasal 27, 32, 42</a></li>
+      <li>Peraturan BPJS Kesehatan 3/2019 (dikutip melalui Aldiany dkk.)</li>
+    </ul>
+    <h3>Prototipe</h3>
+    <ul>
+      <li>Aplikasi: <a href="https://tepat-jkp.streamlit.app">tepat-jkp.streamlit.app</a></li>
+      <li>Kode tersedia untuk juri atas permintaan.</li>
+    </ul>
+  </div>
+  <footer class="foot"><div class="src">Setiap baris sumber dapat diklik di PDF ini.</div><div class="where">Sumber<span>20 / 20</span></div></footer>
+</section>
+
+</main>
+<script>
+  // Screen view only: scale each 1920 x 1080 slide to the window width. Print ignores this.
+  function fit() {
+    const z = Math.min(1, (window.innerWidth - 48) / 1920);
+    document.documentElement.style.setProperty("--z", z.toFixed(4));
+  }
+  window.addEventListener("resize", fit);
+  fit();
+</script>
+</body>
+</html>

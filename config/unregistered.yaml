@@ -1,0 +1,31 @@
+# Unregistered-employer world (mode 1, variants 1e/1f). Separate from default.yaml on purpose:
+# generating this never touches the main branch data or the headline benchmark.
+# Every value is an ASSUMPTION (no public count of unregistered businesses per branch; E20 is one branch).
+
+n_candidates: 800              # OSS NIB holders in the branch area that are NOT in the BPJS Kesehatan registry
+seed_offset: 7919              # own RNG stream, independent of the main generator
+
+kinds:                         # shares of the candidates (normalised)
+  U1_tk_only: 0.22             # violator 1e: registered at BPJS TK with >=2 workers, never at BPJS Kesehatan
+  U2_oss_only: 0.20            # violator 1f: NIB + NPWP + >=2 workers, at neither BPJS
+  C15_exempt_micro: 0.23       # look-alike: fewer than 2 workers, not obliged (E21)
+  C16_dormant: 0.16            # look-alike: NIB issued, business not operating; OSS headcount is stale
+  C17_group_covered: 0.12      # look-alike: workers already PPU at BPJS Kesehatan under a related registered employer
+  C18_closed_after_snapshot: 0.07  # look-alike: closed after the last quarterly TK snapshot, which still lists workers
+
+violator_size_bands: {"2-9": 0.62, "10-49": 0.30, "50-249": 0.08}
+tk_coverage: [0.6, 1.0]        # share of a U1 employer's workers it registered at BPJS TK
+moonlighter_share: [0.0, 0.45] # per U1 employer: share of its TK workers already PPU elsewhere (part-timers); no gap for them
+group_stale_share: [0.0, 0.45] # per C17: share of its TK workers whose PPU spell under the parent ended recently (stale TK)
+npwp_rate: {U1_tk_only: 0.97, U2_oss_only: 0.92, C15_exempt_micro: 0.70, C16_dormant: 0.45, C17_group_covered: 0.98, C18_closed_after_snapshot: 0.9}
+exempt_tk_rate: 0.15           # C15 owners/one worker who did register at BPJS TK
+exempt_overstate: 0.25         # C15 whose OSS form still states 2-3 workers
+dormant_declared: [2, 15]      # C16 stale OSS headcount range
+oss_sigma: 0.35                # noise on declared headcount (stale forms, rounding)
+nik_typo: 0.005
+name_variant: 0.03
+
+branches:
+  A: {}
+  B: {}
+  C: {lookalike_scale: 1.5}    # shifted: more look-alikes among candidates

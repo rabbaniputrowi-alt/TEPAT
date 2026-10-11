@@ -1,0 +1,232 @@
+{
+  "seeds": [
+    20262007,
+    20263007,
+    20264007,
+    20265007,
+    20261007
+  ],
+  "default_seed": 20261007,
+  "detail": {
+    "B": {
+      "budget_hours": 342.0,
+      "employers": 800,
+      "violators": 341,
+      "prevalence": 0.42625,
+      "total_recoverable_rp": 13202913643.407532,
+      "rankings": {
+        "random": {
+          "inspected": 80.9,
+          "hours": 342.0,
+          "hits": 34.32,
+          "precision": 0.42425581939071677,
+          "recall": 0.1006451612903226,
+          "rp_recovered": 1294600312.6403325,
+          "rp_per_hour": 3785381.031112083,
+          "rp_share": 0.09805413771578753,
+          "honest_flag_rate": 0.10148148148148145,
+          "top5_precision": 0.41950000000000004,
+          "top10_precision": 0.42375,
+          "top20_precision": 0.431125,
+          "recall_by_variant": {
+            "1e": 0.1031111111111111,
+            "1f": 0.09788819875776399
+          },
+          "lookalike_flag_rate": {
+            "C15": 0.10047169811320752,
+            "C16": 0.10471544715447155,
+            "C17": 0.09975903614457832,
+            "C18": 0.1004878048780488
+          }
+        },
+        "oss_only": {
+          "inspected": 26,
+          "hours": 342.0,
+          "hits": 21,
+          "precision": 0.8076923076923077,
+          "recall": 0.06158357771260997,
+          "rp_recovered": 5257340136.788376,
+          "rp_per_hour": 15372339.581252562,
+          "rp_share": 0.39819544979099875,
+          "recall_by_variant": {
+            "1e": 0.05555555555555555,
+            "1f": 0.06832298136645963
+          },
+          "lookalike_flag_rate": {
+            "C15": 0.0,
+            "C16": 0.0,
+            "C17": 0.03614457831325301,
+            "C18": 0.04878048780487805
+          },
+          "honest_flag_rate": 0.010893246187363835,
+          "top5_precision": 0.775,
+          "top10_precision": 0.725,
+          "top20_precision": 0.6875
+        },
+        "rules_only": {
+          "inspected": 26,
+          "hours": 342.0,
+          "hits": 21,
+          "precision": 0.8076923076923077,
+          "recall": 0.06158357771260997,
+          "rp_recovered": 5378827233.262329,
+          "rp_per_hour": 15727565.009538975,
+          "rp_share": 0.4073969866452986,
+          "recall_by_variant": {
+            "1e": 0.05555555555555555,
+            "1f": 0.06832298136645963
+          },
+          "lookalike_flag_rate": {
+            "C15": 0.0,
+            "C16": 0.0,
+            "C17": 0.03614457831325301,
+            "C18": 0.04878048780487805
+          },
+          "honest_flag_rate": 0.010893246187363835,
+          "top5_precision": 0.75,
+          "top10_precision": 0.7125,
+          "top20_precision": 0.69375
+        },
+        "tepat_registration": {
+          "inspected": 33,
+          "hours": 342.0,
+          "hits": 30,
+          "precision": 0.9090909090909091,
+          "recall": 0.08797653958944282,
+          "rp_recovered": 5861357636.667162,
+          "rp_per_hour": 17138472.621833805,
+          "rp_share": 0.44394425313793145,
+          "recall_by_variant": {
+            "1e": 0.03333333333333333,
+            "1f": 0.14906832298136646
+          },
+          "lookalike_flag_rate": {
+            "C15": 0.0,
+            "C16": 0.0,
+            "C17": 0.0,
+            "C18": 0.07317073170731707
+          },
+          "honest_flag_rate": 0.006535947712418301,
+          "top5_precision": 0.85,
+          "top10_precision": 0.85,
+          "top20_precision": 0.725
+        }
+      }
+    },
+    "C": {
+      "budget_hours": 339.3,
+      "employers": 800,
+      "violators": 267,
+      "prevalence": 0.33375,
+      "total_recoverable_rp": 10013715142.539867,
+      "rankings": {
+        "random": {
+          "inspected": 79.7,
+          "hours": 339.0,
+          "hits": 26.62,
+          "precision": 0.33407935259971966,
+          "recall": 0.09970037453183522,
+          "rp_recovered": 1007437484.5387775,
+          "rp_per_hour": 2971791.989789903,
+          "rp_share": 0.10060576621148544,
+          "honest_flag_rate": 0.09958724202626643,
+          "top5_precision": 0.3435,
+          "top10_precision": 0.33675,
+          "top20_precision": 0.33362499999999995,
+          "recall_by_variant": {
+            "1e": 0.10137931034482758,
+            "1f": 0.09770491803278687
+          },
+          "lookalike_flag_rate": {
+            "C15": 0.10245454545454544,
+            "C16": 0.0944,
+            "C17": 0.10061224489795918,
+            "C18": 0.1003076923076923
+          }
+        },
+        "oss_only": {
+          "inspected": 26,
+          "hours": 339.0,
+          "hits": 15,
+          "precision": 0.5769230769230769,
+          "recall": 0.056179775280898875,
+          "rp_recovered": 4332491166.522407,
+          "rp_per_hour": 12780209.930744562,
+          "rp_share": 0.4326557231608566,
+          "recall_by_variant": {
+            "1e": 0.05517241379310345,
+            "1f": 0.05737704918032787
+          },
+          "lookalike_flag_rate": {
+            "C15": 0.0,
+            "C16": 0.0,
+            "C17": 0.08163265306122448,
+            "C18": 0.046153846153846156
+          },
+          "honest_flag_rate": 0.020637898686679174,
+          "top5_precision": 0.6,
+          "top10_precision": 0.55,
+          "top20_precision": 0.4875
+        },
+        "rules_only": {
+          "inspected": 26,
+          "hours": 339.0,
+          "hits": 13,
+          "precision": 0.5,
+          "recall": 0.04868913857677903,
+          "rp_recovered": 4083710345.897061,
+          "rp_per_hour": 12046343.203236168,
+          "rp_share": 0.4078117150096276,
+          "recall_by_variant": {
+            "1e": 0.04827586206896552,
+            "1f": 0.04918032786885246
+          },
+          "lookalike_flag_rate": {
+            "C15": 0.0,
+            "C16": 0.0,
+            "C17": 0.10204081632653061,
+            "C18": 0.046153846153846156
+          },
+          "honest_flag_rate": 0.024390243902439025,
+          "top5_precision": 0.575,
+          "top10_precision": 0.525,
+          "top20_precision": 0.4875
+        },
+        "tepat_registration": {
+          "inspected": 39,
+          "hours": 339.0,
+          "hits": 23,
+          "precision": 0.5897435897435898,
+          "recall": 0.08614232209737828,
+          "rp_recovered": 4828319533.963608,
+          "rp_per_hour": 14242830.48366846,
+          "rp_share": 0.482170649477748,
+          "recall_by_variant": {
+            "1e": 0.041379310344827586,
+            "1f": 0.13934426229508196
+          },
+          "lookalike_flag_rate": {
+            "C15": 0.0,
+            "C16": 0.0,
+            "C17": 0.01020408163265306,
+            "C18": 0.23076923076923078
+          },
+          "honest_flag_rate": 0.0300187617260788,
+          "top5_precision": 0.6,
+          "top10_precision": 0.6125,
+          "top20_precision": 0.55
+        }
+      }
+    },
+    "coefficients": {
+      "on_tk": 0.551,
+      "log_tk_uncov": -0.315,
+      "cov_share": -0.463,
+      "log_oss_n": 0.052,
+      "has_npwp": 0.395,
+      "oss_ge2": 0.998,
+      "rule_obliged": 0.465,
+      "nib_age_y": -0.137
+    }
+  }
+}

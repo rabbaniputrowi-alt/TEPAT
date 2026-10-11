@@ -200,8 +200,8 @@ ol.flow .n { display: block; font-size: 30px; font-weight: 750; color: var(--pri
 #s18 .team p { font-size: 26px; }
 #s18 .team p.next { font-size: 23px; color: var(--muted); margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
 #s18 .cols h3 { font-size: 27px; }
-#s19 .body { font-size: 28.5px !important; }
-#s19 ul.dots li + li { margin-top: 20px; }
+#s19 .body { font-size: 27px !important; }
+#s19 ul.dots li + li { margin-top: 18px; }
 #s20 .sources { font-size: 23px; line-height: 1.45; }
 #s20 .sources h3 { font-size: 24px; }
 #s20 .sources ul { margin-bottom: 26px; }
@@ -551,7 +551,7 @@ ol.flow .n { display: block; font-size: 30px; font-weight: 750; color: var(--pri
     <div class="phases">
       <div><h3>0. Prototipe</h3><p class="when">selesai, Oktober 2026</p><p class="what">Generator, skorer, benchmark 5 seed, aplikasi publik.</p><p class="out"><b>Deliverable</b>Tautan demo, laporan benchmark.</p></div>
       <div><h3>1. Hackathon</h3><p class="when">sekitar 3 minggu</p><p class="what">Kalibrasi asumsi bersama mentor BPJS (jam pemeriksaan, periode pemulihan, isi file pertukaran); alur surat dan jalur hijau di aplikasi; sinyal baru untuk sub-mode yang masih lemah.</p><p class="out"><b>Deliverable</b>TEPAT v3, benchmark ulang dengan asumsi terkalibrasi, draf DPIA.</p></div>
-      <div><h3>2. Uji coba bayangan</h3><p class="when">3 bulan, bila BPJS bersedia</p><p class="what">TEPAT berjalan berdampingan dengan proses yang ada di 1 s.d. 2 kantor cabang, pada data riil di lingkungan BPJS, tanpa mengubah keputusan. Ditambah pencocokan OSS/NIB untuk badan usaha yang belum terdaftar sama sekali.</p><p class="out"><b>Deliverable</b>Laporan perbandingan hasil pemeriksaan, DPIA final.</p></div>
+      <div><h3>2. Uji coba bayangan</h3><p class="when">3 bulan, bila BPJS bersedia</p><p class="what">TEPAT berjalan berdampingan dengan proses yang ada di 1 s.d. 2 kantor cabang, pada data riil di lingkungan BPJS, tanpa mengubah keputusan. Ditambah pencarian badan usaha yang belum terdaftar di BPJS Kesehatan, dari registri BPJS Ketenagakerjaan dan data NIB di OSS.</p><p class="out"><b>Deliverable</b>Laporan perbandingan hasil pemeriksaan, DPIA final.</p></div>
       <div><h3>3. Perluasan</h3><p class="when">setelah fase 2</p><p class="what">Lebih banyak cabang; model dilatih ulang tiap kuartal mengikuti siklus pertukaran data.</p><p class="out"><b>Deliverable</b>Panduan operasional, dasbor pemantauan model.</p></div>
     </div>
     <div class="cols c-2 rule-top res" style="gap:72px;margin-top:34px;font-size:23px">
@@ -672,14 +672,14 @@ ol.flow .n { display: block; font-size: 30px; font-weight: 750; color: var(--pri
   <div class="body" style="font-size:25px">
     <ul class="dots" style="max-width:1560px">
       <li><b>Semua hasil berasal dari data sintetis dengan asumsi kami:</b> 20% pemberi kerja melanggar; jam pemeriksaan 3, 6, 12, dan 24 jam per skala usaha; periode pemulihan 12 bulan (diuji 6 s.d. 24 bulan; Perpres 59/2024 Pasal 42 ayat (3) membatasi tunggakan 24 bulan).</li>
-      <li><b>Badan usaha yang sama sekali belum terdaftar di BPJS Kesehatan maupun BPJS Ketenagakerjaan tidak terlihat oleh TEPAT.</b> Di Tulungagung, 676 dari 1.092 badan usaha yang terdata belum mendaftarkan pekerjanya. Pencocokan OSS/NIB masuk fase 2.</li>
+      <li><b>Badan usaha yang belum terdaftar di BPJS Kesehatan belum masuk daftar TEPAT</b>, karena prototipe bekerja dari registri pemberi kerja BPJS Kesehatan. Di Tulungagung, 676 dari 1.092 badan usaha yang terdata belum mendaftarkan pekerjanya. Fase 2 menambah dua sumber untuk memunculkan mereka: badan usaha yang terdaftar di BPJS Ketenagakerjaan tetapi tidak di BPJS Kesehatan (lewat pertukaran data PKS; pemerintah menyebut banyak perusahaan hanya memakai salah satu BPJS), dan pemegang NIB di OSS yang wajib mendaftar (perusahaan dengan NIB, NPWP, dan minimal 2 pekerja).</li>
       <li><b>Sub-mode yang masih lemah</b> (recall TEPAT v2.1, rata-rata 5 seed): pekerja yang tidak tercatat di kedua BPJS 8%, upah lebih rendah dari pola sektor 21%, pekerja dikeluarkan sebelum berhenti 21%, penskalaan upah yang tidak pernah dilatih 9% (cabang bergeser).</li>
       <li><b>Rentang rupiah sedikit terlalu lebar:</b> 89% nilai sebenarnya jatuh di dalam rentang 10 s.d. 90 persen, padahal targetnya sekitar 80%.</li>
       <li><b>Isi kolom file pertukaran BPJS Ketenagakerjaan belum kami ketahui.</b> Prototipe mengasumsikan NIK, nama, upah, dan tanggal mulai kerja per pekerja.</li>
       <li><b>Sinyal lintas-BPJS di v2 hanya menambah 3% rupiah per jam dibanding v1</b>, dan rentang antar-seed melewati nol. Nilainya ada pada alasan dan pilihan tindakan, bukan pada peringkat.</li>
     </ul>
   </div>
-  <footer class="foot"><div class="src">Sumber: spesifikasi data sintetis dan benchmark multi-seed TEPAT; Perpres 59/2024 Pasal 42; Merdeka, 19 Jun 2026.</div><div class="where">Asumsi dan batasan<span>19 / 20</span></div></footer>
+  <footer class="foot"><div class="src">Sumber: spesifikasi data sintetis dan benchmark multi-seed TEPAT; Perpres 59/2024 Pasal 42; Merdeka, 19 Apr dan 19 Jun 2026; Kompas, 1 Jul 2026.</div><div class="where">Asumsi dan batasan<span>19 / 20</span></div></footer>
 </section>
 
 <!-- S20 -->

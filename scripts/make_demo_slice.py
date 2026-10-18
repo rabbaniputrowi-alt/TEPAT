@@ -14,6 +14,9 @@ clone or Streamlit Community Cloud would have nothing to show. The slice keeps e
   keeps every row, at every employer, so a lookup by NIK in "Cek kepesertaan saya" returns the same
   answer as on the full data. Workers of other employers are simply absent.
 * truth/payroll_truth and truth/labels are not used by the app and are left out.
+* The registration pass (`tepat unreg`) is copied whole when present: results/unreg_ranked_<branch>.parquet
+  becomes demo/<branch>/unreg_ranked.parquet and truth/unregistered_truth is kept (800 rows each), for the
+  "Usaha belum terdaftar" view.
 """
 from __future__ import annotations
 
@@ -112,6 +115,10 @@ def build_branch(branch: str, src_data: Path, src_results: Path, out: Path, rng:
     whole[src / "truth" / "employers_truth.parquet"] = dst / "truth" / "employers_truth.parquet"
     whole[ranked_src] = dst / "ranked.parquet"
     whole[features_src] = dst / "features.parquet"
+    unreg_src = src_results / f"unreg_ranked_{branch}.parquet"
+    if unreg_src.is_file():
+        whole[unreg_src] = dst / "unreg_ranked.parquet"
+        whole[src / "truth" / "unregistered_truth.parquet"] = dst / "truth" / "unregistered_truth.parquet"
     for a, b in whole.items():
         write(pd.read_parquet(a), b)
         pd.testing.assert_frame_equal(pd.read_parquet(a), pd.read_parquet(b))

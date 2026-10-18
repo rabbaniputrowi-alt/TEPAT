@@ -5,7 +5,8 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 APP = Path(__file__).resolve().parents[1] / "app" / "streamlit_app.py"
-VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Benchmark", "Keadilan & jalur acak", "Cek kepesertaan saya"]
+VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
+         "Cek kepesertaan saya"]
 
 
 # A fresh environment spends its first run on cold imports and data loading, hence 120 s timeouts.

@@ -9,7 +9,9 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Benchmark", "Keadilan & jalur acak", "Cek kepesertaan saya"]
+VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
+         "Cek kepesertaan saya"]
+SCROLL_VIEWS = ("Usaha belum terdaftar", "Benchmark")   # long views: also capture each screen below the fold
 parser = argparse.ArgumentParser()
 parser.add_argument("--url", default="http://localhost:8501")
 parser.add_argument("--out", default=str(ROOT / ".impeccable" / "review"))
@@ -54,6 +56,14 @@ with sync_playwright() as p:
         page.screenshot(path=str(path))
         records.append({"viewport": "desktop", "view": view, "screenshot": str(path),
                         "metrics": page.locator('[data-testid="stMetricValue"]').all_text_contents()})
+        if view in SCROLL_VIEWS:
+            main = page.locator('[data-testid="stMain"]')
+            height = main.evaluate("e => e.scrollHeight")
+            for k, top in enumerate(range(900, height, 900), start=1):
+                main.evaluate(f"e => e.scrollTop = {top}")
+                page.wait_for_timeout(400)
+                page.screenshot(path=str(out / f"desktop-{n + 1}-s{k}.png"))
+            main.evaluate("e => e.scrollTop = 0")
         (out / "browser-results.json").write_text(json.dumps({"records": records, "errors": errors}, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # Exercise the real queue-to-case path.

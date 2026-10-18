@@ -3,7 +3,10 @@
     uv run streamlit run app/streamlit_app.py
 
 Inspector views read observed/ + the scorer's ranked output. Only the clearly labelled
-"kunci jawaban" expanders and the benchmark tab read truth/ (to show how the method was scored).
+"kunci jawaban" expanders, the benchmark tab and the second list's test table read truth/ or
+benchmark results (to show how the method was scored). The Benchmark tab also reads the committed
+5-seed sweep (results/sweep/), and "Usaha belum terdaftar" reads the registration pass
+(`tepat unreg`: results/unreg_ranked_<branch>.parquet and results/unregistered_*.csv).
 
 Data source per branch: the full local run (data/<branch>/ + results/*.parquet, gitignored) when it
 exists, otherwise the committed slice in demo/ (fresh clone, Streamlit Community Cloud). Set
@@ -44,6 +47,12 @@ SEKTOR = {"C": "Manufaktur", "F": "Konstruksi", "G": "Perdagangan", "H": "Logist
 RANK_LABEL = {"random": "Acak", "biggest_first": "Terbesar dulu", "rules_only": "Aturan saja",
               "tepat_v1": "TEPAT v1", "tepat_v2": "TEPAT v2", "tepat_v2_1": "TEPAT v2.1",
               "tepat_v2_1_with_random_arm": "TEPAT v2.1 + jalur acak 8%"}
+UNREG_LABEL = {"tepat_registration": "TEPAT daftar kedua", "rules_only": "Aturan hukum (TK dan OSS)",
+               "oss_only": "Pencocokan OSS saja", "random": "Acak"}
+SKALA = {"micro": "Mikro", "small": "Kecil", "medium": "Menengah", "large": "Besar"}
+DIAL = {"default": "Bawaan", "prevalence": "Prevalensi pelanggar", "lookback_months": "Masa tagih (bulan)",
+        "budget_frac": "Anggaran jam", "inspection_hours": "Jam pemeriksaan per skala"}
+NOT_OBLIGED = "Tidak wajib"
 
 st.set_page_config(page_title="TEPAT Pemeriksaan Kepatuhan", page_icon=":material/center_focus_strong:", layout="wide")
 
@@ -61,6 +70,19 @@ def ribu(n: int) -> str:
 
 def jt(x: float) -> str:
     return "Rp" + f"{x / 1e6:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".") + " jt"
+
+
+def kali(x: float) -> str:
+    """Ratio in the Indonesian form used on the slides: 2,3x."""
+    return f"{x:.1f}".replace(".", ",") + "x"
+
+
+def angka(x: float, d: int = 1) -> str:
+    return f"{x:,.{d}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def pct_range(mean: float, lo: float, hi: float) -> str:
+    return f"{mean:.0%} ({lo * 100:.0f} s.d. {hi:.0%})"
 
 
 def month_label(m: int) -> str:
@@ -112,6 +134,28 @@ def load_results() -> dict:
     return json.loads((RESULTS / "results.json").read_text(encoding="utf-8"))
 
 
+@st.cache_data
+def load_csv(path: str) -> pd.DataFrame:
+    return pd.read_csv(path)
+
+
+def unreg_sources(branch: str, demo_mode: bool) -> tuple[Path, Path]:
+    """Second list (registration pass): ranked candidates and their answer key. Same source rule as sources():
+    the full local run when it has the files, otherwise the committed slice."""
+    full = (RESULTS / f"unreg_ranked_{branch}.parquet", DATA / branch / "truth" / "unregistered_truth.parquet")
+    if not demo_mode and full[0].is_file() and full[1].is_file():
+        return full
+    return DEMO / branch / "unreg_ranked.parquet", DEMO / branch / "truth" / "unregistered_truth.parquet"
+
+
+@st.cache_data(show_spinner="Memuat daftar kedua")
+def load_unreg(ranked_path: str, truth_path: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    U = pd.read_parquet(ranked_path)
+    U.index = U.index.astype(str)
+    T = pd.read_parquet(truth_path).assign(nib=lambda d: d.nib.astype(str)).set_index("nib")
+    return U, T
+
+
 def read_tips() -> pd.DataFrame:
     if TIPS.exists():
         return pd.read_csv(TIPS)
@@ -141,10 +185,12 @@ ASSETS = ROOT / "app" / "assets"
 font_data = base64.b64encode((ASSETS / "public-sans-latin.woff2").read_bytes()).decode("ascii")
 css = (ASSETS / "workspace.css").read_text(encoding="utf-8").replace("__PUBLIC_SANS__", font_data)
 st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
-VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Benchmark", "Keadilan & jalur acak", "Cek kepesertaan saya"]
+VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
+         "Cek kepesertaan saya"]
 DESCRIPTIONS = {
     "Daftar prioritas": "Tentukan kapasitas pemeriksaan. Dahulukan potensi pemulihan per jam tertinggi.",
     "Kasus perusahaan": "Telusuri sinyal, dasar hukum, dan dokumen sebelum mengambil keputusan.",
+    "Usaha belum terdaftar": "Usaha yang wajib mendaftar ke BPJS Kesehatan tetapi belum ada di registri. Daftar terpisah dari antrean utama.",
     "Benchmark": "Bandingkan metode dengan anggaran jam yang sama. Semua hasil berasal dari simulasi sintetis.",
     "Keadilan & jalur acak": "Pantau siapa yang terpilih dan siapa yang terlewat. Jangan hanya belajar dari kasus berisiko tinggi.",
     "Cek kepesertaan saya": "Apakah pemberi kerja sudah mendaftarkan Anda dan membayar iuran? Coba dengan NIK sintetis.",
@@ -317,6 +363,99 @@ if view == "Kasus perusahaan":
         st.write({"melanggar": bool(t.is_violator), "varian yang ditanam": t.variants or "-",
                   "look-alike jujur": t.lookalikes or "-", "Rp dapat dipulihkan (sebenarnya)": rp(t.recoverable_rp_true)})
 
+# 2b. Second list: businesses missing from the BPJS Kesehatan registry ------------------
+if view == "Usaha belum terdaftar":
+    up, tp = unreg_sources(branch, demo_mode)
+    if not (up.is_file() and tp.is_file()):
+        st.info("Daftar kedua belum dibuat. Jalankan perintah berikut di folder repo, lalu muat ulang halaman.")
+        st.code("uv run tepat unreg", language="bash")
+        st.stop()
+    U, UT = load_unreg(str(up), str(tp))
+    st.info("Antrean utama hanya berisi pemberi kerja yang sudah terdaftar di BPJS Kesehatan. Daftar kedua ini memeriksa "
+            "pemegang NIB di OSS dan usaha yang terdaftar di BPJS Ketenagakerjaan, tetapi tidak ada di registri BPJS Kesehatan. "
+            "Antrean utama dan angka benchmark utama tidak berubah karena daftar ini.")
+    if branch == "A":
+        st.warning("Cabang A dipakai untuk melatih model daftar ini. Angka uji berasal dari cabang B atau C.")
+    summary = st.container(key="summary")
+    with st.container(border=True, key="unreg_capacity"):
+        total_h = float(U.hours.sum())
+        budget = st.slider("Anggaran jam pemeriksaan", 25, int(total_h * 0.3), int(total_h * 0.10), step=25, key="unreg_budget",
+                           help="Bawaan sekitar 10% total jam kandidat, sama seperti pengujian.")
+    U = U.assign(expected_rp=U.p_unregistered * U.est_rp.clip(lower=0))
+    in_budget = set(U.index[U.hours.cumsum() <= budget])
+    sel = U.loc[list(in_budget)]
+    with summary:
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Perkiraan iuran 12 bulan", jt(sel.expected_rp.sum()), help="Tertimbang P. Upah memakai UMK sebagai proksi.")
+        m2.metric("Usaha dalam anggaran", f"{len(sel)}")
+        m3.metric("Perkiraan Rp per jam", jt(sel.expected_rp.sum() / max(1, sel.hours.sum())))
+        m4.metric("Pemeriksaan bersama TK", f"{int(sel.action.str.startswith('Pemeriksaan bersama').sum())}")
+    st.subheader("Usaha untuk ditinjau")
+    st.caption(f"{ribu(len(U))} kandidat dari OSS dan BPJS Ketenagakerjaan yang tidak ada di registri BPJS Kesehatan cabang ini.")
+    show = pd.DataFrame({
+        "Peringkat": U["rank"], "Anggaran": np.where(U.index.isin(in_budget), "Terpilih", "Di luar anggaran"),
+        "Usaha": U["name"], "P(wajib, belum terdaftar)": U.p_unregistered.round(2),
+        "Rp/jam": (U.expected_rp / U.hours).map(jt), "Perkiraan pekerja": U.est_workers.astype(int),
+        "Sumber": np.where(U.tk_n > 0, "BPJS TK dan OSS", "OSS saja"), "Kab/Kota": U.kabkota,
+        "Sektor": U.sector.map(SEKTOR), "Skala": U.skala_usaha.map(SKALA), "Tindakan": U.action,
+        "Alasan utama": U.reasons.str.split(" \\| ").str[0]}, index=U.index)
+    st.dataframe(show, height=420, width="stretch", hide_index=True,
+                 column_config={"Peringkat": st.column_config.NumberColumn("#", width="small"),
+                                "Usaha": st.column_config.TextColumn(width="medium"),
+                                "P(wajib, belum terdaftar)": st.column_config.ProgressColumn(min_value=0, max_value=1, format="percent")})
+    left, right = st.columns([3, 2], gap="large")
+    with left, st.container(border=True):
+        nib = st.selectbox("Pilih usaha", list(U.index), index=0, key="unreg_pick",
+                           format_func=lambda n: f"{U.at[n, 'name']} (peringkat {int(U.at[n, 'rank'])})")
+        u = U.loc[nib]
+        st.subheader(u["name"])
+        st.caption(f"{SEKTOR.get(u.sector, u.sector)} di {u.kabkota}. Skala {SKALA.get(u.skala_usaha, u.skala_usaha).lower()}. "
+                   f"NIB {nib} (sintetis).")
+        st.info(f"**Tindakan yang disarankan:** {u.action}")
+        for text in u.reasons.split(" | "):
+            st.markdown(f'<div class="signal-row"><strong>{escape(text)}</strong>'
+                        f'<small>Dasar: {escape(u.legal_basis)}</small></div>', unsafe_allow_html=True)
+    with right, st.container(border=True):
+        st.subheader("Perkiraan nilai")
+        st.metric("Perkiraan iuran 12 bulan", jt(u.est_rp))
+        st.metric("P(wajib, belum terdaftar)", f"{u.p_unregistered:.0%}")
+        st.caption(f"{int(u.est_workers)} pekerja x 5% x UMK x 12 bulan. Upah usaha yang belum terdaftar tidak diketahui, "
+                   "jadi UMK dipakai sebagai proksi konservatif. Waktu pemeriksaan "
+                   f"{int(u.hours)} jam.")
+    with st.expander("Kunci jawaban (khusus demo sintetis)"):
+        st.caption("Tidak tersedia bagi petugas di dunia nyata. Tidak dipakai untuk menentukan peringkat.")
+        t = UT.loc[nib]
+        st.write({"wajib dan belum terdaftar": bool(t.is_violator), "jenis": t.kind, "pekerja sebenarnya": int(t.true_workers),
+                  "Rp dapat dipulihkan (sebenarnya)": rp(t.recoverable_rp_true)})
+    if branch in ("B", "C"):
+        st.subheader("Hasil uji lima seed")
+        us = load_csv(str(RESULTS / "unregistered_summary.csv"))
+        us = us[us.branch == branch].set_index("ranking")
+        runs = load_csv(str(RESULTS / "unregistered_runs.csv"))
+        runs = runs[runs.branch == branch].pivot_table(index="seed", columns="ranking", values="rp_per_hour_juta")
+        per_seed = runs.tepat_registration / runs.rules_only
+        ratio = us.at["tepat_registration", "rp_h"] / us.at["rules_only", "rp_h"]
+        with st.container(key="summary_unreg"):
+            a, b, c = st.columns(3)
+            a.metric("Presisi TEPAT", f"{us.at['tepat_registration', 'precision']:.0%}",
+                     help=f"Aturan hukum: {us.at['rules_only', 'precision']:.0%}")
+            b.metric("Rp per jam TEPAT", jt(us.at["tepat_registration", "rp_h"] * 1e6),
+                     help=f"Aturan hukum: {jt(us.at['rules_only', 'rp_h'] * 1e6)}")
+            c.metric("Dibanding aturan hukum", kali(ratio), help="Rasio rata-rata Rp per jam lima seed.")
+        rows = [{"Metode": UNREG_LABEL.get(k, k),
+                 "Presisi": pct_range(r.precision, r.precision_min, r.precision_max),
+                 "Rp jt/jam": f"{angka(r.rp_h)} ({angka(r.rp_h_min)} s.d. {angka(r.rp_h_max)})",
+                 "Recall": f"{r.recall:.0%}", "Jujur ditandai": f"{r.honest:.1%}".replace(".", ",")}
+                for k, r in us.loc[[k for k in UNREG_LABEL if k in us.index]].iterrows()]
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+        tie = " Pada seed terburuk hasilnya hanya setara." if per_seed.min() < 1.01 else ""
+        st.caption(f"Keunggulan tipis: rata-rata {kali(ratio)} aturan hukum, per seed {angka(per_seed.min(), 2)} s.d. "
+                   f"{angka(per_seed.max(), 2)}.{tie} Rentang dalam kurung adalah nilai terendah s.d. tertinggi dari lima seed. "
+                   "Recall rendah karena anggaran hanya cukup untuk sebagian kecil kandidat.")
+    st.caption("Batasan: komposisi kandidat (berapa yang wajib, dorman, tutup, atau tercakup grup) adalah asumsi simulasi di "
+               "config/unregistered.yaml. Tidak terhubung ke OSS atau BPJS Ketenagakerjaan sungguhan. Usaha tanpa NIB tetap tidak "
+               "terlihat. Tingkat kematangan: prototipe.")
+
 # 3. Benchmark ---------------------------------------------------------------
 if view == "Benchmark":
     rb = load_results()["branches"][branch]
@@ -325,15 +464,17 @@ if view == "Benchmark":
     baseline = rb["rankings"]["rules_only"]
     if branch == "A":
         st.warning("Cabang A dipakai untuk tuning. Angka utama harus berasal dari cabang B atau C.")
-    st.warning("Hasil metode pada data sintetis, satu seed. Bukan bukti dampak operasional BPJS atau estimasi nasional.")
+    st.warning("Hasil metode pada data sintetis. Kartu dan grafik di atas memakai seed bawaan; rentang lima seed ada di bawah. "
+               "Bukan bukti dampak operasional BPJS atau estimasi nasional.")
     with st.container(key="summary"):
         a, b, c, d = st.columns(4)
         a.metric("Rp per jam pemeriksaan", jt(best["rp_per_hour"]))
         b.metric("Presisi pemeriksaan", f"{best['precision']:.0%}")
-        c.metric("Perusahaan jujur ditandai", f"{best['honest_flag_rate']:.1%}")
-        d.metric("Dibanding aturan saja", f"{best['rp_per_hour'] / max(1, baseline['rp_per_hour']):.2f}×", help="Perbandingan Rp per jam, bukan dampak nasional.")
-    st.caption(f"Cabang {branch}: {ribu(rb['employers'])} perusahaan; {rb['violators']} pelanggar ditanam ({rb['prevalence']:.0%}); "
-               f"anggaran {rb['budget_hours']:.0f} jam, sekitar 10% total jam.")
+        c.metric("Perusahaan jujur ditandai", f"{angka(best['honest_flag_rate'] * 100)}%")
+        d.metric("Dibanding aturan saja", kali(best["rp_per_hour"] / max(1, baseline["rp_per_hour"])),
+                 help="Perbandingan Rp per jam pada seed bawaan, bukan dampak nasional.")
+    st.caption(f"Cabang {branch}, seed bawaan: {ribu(rb['employers'])} perusahaan; {rb['violators']} pelanggar ditanam "
+               f"({rb['prevalence']:.0%}); anggaran {rb['budget_hours']:.0f} jam, sekitar 10% total jam.")
     rows = []
     for k, v in rb["rankings"].items():
         rows.append(dict(Peringkat=RANK_LABEL.get(k, k), key=k, rp_per_jam=v["rp_per_hour"] / 1e6, presisi=v["precision"],
@@ -359,8 +500,54 @@ if view == "Benchmark":
     st.subheader("Hasil lengkap")
     table = B.drop(columns=["key", "kelompok"]).rename(columns={"Peringkat": "Metode", "rp_per_jam": "Rp jt/jam",
         "presisi": "Presisi", "recall": "Recall", "jujur_ditandai": "Jujur ditandai", "diperiksa": "Diperiksa", "rp_total": "Rp jt total"})
-    st.dataframe(table.style.format({"Rp jt/jam": "{:.2f}", "Presisi": "{:.0%}", "Recall": "{:.0%}", "Jujur ditandai": "{:.1%}",
-                                     "Diperiksa": "{:.0f}", "Rp jt total": "{:,.0f}"}), width="stretch", hide_index=True)
+    st.dataframe(table.style.format({"Rp jt/jam": lambda x: angka(x, 2), "Presisi": "{:.0%}", "Recall": "{:.0%}",
+                                     "Jujur ditandai": lambda x: f"{angka(x * 100)}%", "Diperiksa": lambda x: angka(x, 0),
+                                     "Rp jt total": lambda x: angka(x, 0)}), width="stretch", hide_index=True)
+    st.subheader("Ketahanan lintas seed")
+    ss = load_csv(str(RESULTS / "sweep" / "seeds_summary.csv"))
+    ss = ss[ss.branch == branch].set_index("ranking")
+    sr = load_csv(str(RESULTS / "sweep" / "seeds_ratios.csv")).set_index("branch").loc[branch]
+    v = ss.loc[final]
+    with st.container(key="summary_seeds"):
+        a, b, c, d = st.columns(4)
+        a.metric("Rp per jam, lima seed", jt(v.rp_per_hour_juta_mean * 1e6),
+                 help=f"{angka(v.rp_per_hour_juta_min)} s.d. {angka(v.rp_per_hour_juta_max)} jt per jam")
+        b.metric("Presisi, lima seed", f"{v.precision_mean:.0%}", help=f"{v.precision_min:.0%} s.d. {v.precision_max:.0%}")
+        c.metric("Dibanding aturan saja", kali(sr.x_rules_of_means), help=f"Per seed {kali(sr.x_rules_min)} s.d. {kali(sr.x_rules_max)}")
+        d.metric("Dibanding acak", kali(sr.x_random_of_means), help=f"Per seed {kali(sr.x_random_min)} s.d. {kali(sr.x_random_max)}")
+    st.caption(f"Lima seed, data dibangkitkan ulang tiap seed; model dilatih ulang di cabang A. {RANK_LABEL[final]}: "
+               f"{angka(v.rp_per_hour_juta_mean)} jt per jam ({angka(v.rp_per_hour_juta_min)} s.d. {angka(v.rp_per_hour_juta_max)}), "
+               f"{kali(sr.x_rules_of_means)} aturan saja (per seed {kali(sr.x_rules_min)} s.d. {kali(sr.x_rules_max)}). "
+               "Rasio dihitung dari rata-rata, bukan rata-rata rasio per seed.")
+    seed_rows = [{"Metode": RANK_LABEL.get(k, k),
+                  "Rp jt/jam": f"{angka(r.rp_per_hour_juta_mean)} ({angka(r.rp_per_hour_juta_min)} s.d. {angka(r.rp_per_hour_juta_max)})",
+                  "Presisi": pct_range(r.precision_mean, r.precision_min, r.precision_max),
+                  "Recall": pct_range(r.recall_mean, r.recall_min, r.recall_max),
+                  "Jujur ditandai": f"{r.honest_flag_rate_mean:.1%}".replace(".", ",")} for k, r in ss.iterrows()]
+    st.dataframe(pd.DataFrame(seed_rows), width="stretch", hide_index=True)
+    if branch in ("B", "C"):
+        with st.expander("Kapan keunggulan mengecil? Uji sensitivitas"):
+            sens = load_csv(str(RESULTS / "sweep" / "sensitivity.csv"))
+            sens = sens[sens.branch == branch]
+            nilai = {"5%": "5%", "10%": "10%", "35%": "35%", "20%": "20%", "6": "6", "24": "24",
+                     "flat 6/6/6/6": "rata 6/6/6/6", "steep 2/6/16/48": "curam 2/6/16/48"}
+            st.dataframe(pd.DataFrame({
+                "Asumsi": sens.dial.map(DIAL),
+                "Nilai": [("semua bawaan" if d_ == "default" else nilai.get(str(x), str(x)))
+                          for d_, x in zip(sens.dial, sens.value)],
+                "TEPAT Rp jt/jam": sens.v21_rp_hour.map(angka), "Aturan Rp jt/jam": sens.rules_rp_hour.map(angka),
+                "Dibanding aturan": sens.x_rules_of_means.map(kali), "Presisi TEPAT": sens.v21_precision.map("{:.0%}".format),
+                "Jujur ditandai TEPAT": sens.v21_honest_flag.map(lambda x: f"{x:.1%}".replace(".", ",")),
+                "Jujur ditandai aturan": sens.rules_honest_flag.map(lambda x: f"{x:.1%}".replace(".", ","))}),
+                width="stretch", hide_index=True)
+            low = sens[(sens.dial == "prevalence") & (sens.value == "5%")]
+            if len(low):
+                lo = low.iloc[0]
+                st.caption(f"Tiga seed per baris, satu asumsi diubah tiap kali dari nilai bawaan (prevalensi 20%, masa tagih 12 bulan, "
+                           f"anggaran 10%, jam 3/6/12/24 per skala). Keunggulan paling kecil saat jam pemeriksaan rata atau "
+                           f"anggaran besar. Pada prevalensi 5%, presisi TEPAT turun ke {lo.v21_precision:.0%} dan TEPAT menandai "
+                           f"perusahaan jujur {angka(lo.v21_honest_flag * 100)}% dibanding aturan {angka(lo.rules_honest_flag * 100)}%, "
+                           "karena anggaran tidak bisa diisi pelanggar saja.")
     with st.expander("Di mana model masih lemah? Recall dan look-alike"):
         y1, y2 = st.columns(2, gap="large")
         with y1:
@@ -383,8 +570,10 @@ if view == "Benchmark":
         st.success(f"**Contoh perusahaan jujur: {reg.at[e, 'name']}**. Aturan sederhana menandainya di peringkat "
                    f"#{list(rules.index).index(e) + 1} karena TK > Kes. TEPAT mengenali pekerja proyek (`project`) "
                    f"dan menempatkannya di #{int(ranked.at[e, 'rank'])}. Kunci jawaban sintetis: jujur, look-alike C1.")
-    st.caption("Batasan: perusahaan yang tidak pernah mendaftar sama sekali tidak terlihat. Prevalensi, jam pemeriksaan, dan masa tagih "
-               "merupakan asumsi simulasi. Satu seed, belum ada interval lintas-seed. Tingkat kematangan: prototipe.")
+    st.caption("Batasan: antrean utama hanya memuat pemberi kerja yang sudah terdaftar di BPJS Kesehatan; usaha yang belum terdaftar "
+               "diuji terpisah di halaman Usaha belum terdaftar. Prevalensi, jam pemeriksaan, dan masa tagih merupakan asumsi simulasi; "
+               "pengaruhnya ada di uji sensitivitas. Recall per varian dan look-alike di atas berasal dari seed bawaan. "
+               "Tingkat kematangan: prototipe.")
 
 # 4. Fairness ----------------------------------------------------------------
 if view == "Keadilan & jalur acak":

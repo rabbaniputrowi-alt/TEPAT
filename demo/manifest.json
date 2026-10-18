@@ -762,6 +762,14 @@
    "bytes": 29972,
    "sha256": "95daf0849a493019e446a16b72e5c6083b293988fe3dd4e7b5672ed3d9ebf576"
   },
+  "A/truth/unregistered_truth.parquet": {
+   "bytes": 21773,
+   "sha256": "88eb33fb2c48261fe2ce2b80dc08bade9c167bc7dd8f59f603c399b8bcb668ef"
+  },
+  "A/unreg_ranked.parquet": {
+   "bytes": 47410,
+   "sha256": "a6c648246ddb776dd7c9b5d533fc8941f0c91aa8a22e97609dae36811d0d9902"
+  },
   "B/config.json": {
    "bytes": 4952,
    "sha256": "c16b8588eb58f9611c43636dadfeae97e9ee2ac9456bc39ffc35b0f3eaca020b"
@@ -818,6 +826,14 @@
    "bytes": 30223,
    "sha256": "ee4fcb60f4b3b67676f324d679d556854d94eef208978698e8a23018a97bd568"
   },
+  "B/truth/unregistered_truth.parquet": {
+   "bytes": 22036,
+   "sha256": "0d1e711758aec3abc7a0afb1335837d466040d085e67f115316618c5f8037b1e"
+  },
+  "B/unreg_ranked.parquet": {
+   "bytes": 47239,
+   "sha256": "a1b6fc11da89b02114ede751d3b5cb71406c18a58ca598f9ff114716977ca505"
+  },
   "C/config.json": {
    "bytes": 5006,
    "sha256": "4af7244fcf2ec20f9ac92cf806bf049cc41aff5e29d8fbda75477fece48e3b8e"
@@ -873,6 +889,14 @@
   "C/truth/employers_truth.parquet": {
    "bytes": 30404,
    "sha256": "c0c6b940a4c4b39a6a26c1c5a0d23e456eef135fc3e6cbcfb051b6e2b81f838b"
+  },
+  "C/truth/unregistered_truth.parquet": {
+   "bytes": 20738,
+   "sha256": "b05f75aab7aa95a40bc674e4865b56d69224c62fae019c723e1099728054d720"
+  },
+  "C/unreg_ranked.parquet": {
+   "bytes": 47041,
+   "sha256": "919f124a3b9eefd173e2f6fd571ef4993784e85e90210e6b5287373ac940a04e"
   }
  }
 }

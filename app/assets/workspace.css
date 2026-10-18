@@ -107,13 +107,13 @@ h4 { font-size: 1rem !important; }
 .sidebar-note { padding: 0.9rem; border: 1px solid #416368; border-radius: 8px; color: #c8dedf; font-size: 0.76rem; line-height: 1.65; }
 .sidebar-note strong { display: block; color: #ebf6f4; margin-bottom: 0.3rem; font-size: 0.8rem; }
 .sidebar-credit { color: #bad3d4; font-size: 0.75rem; line-height: 1.7; margin-top: 0.5rem; }
-.st-key-summary [data-testid='stHorizontalBlock'] { background: var(--tepat-paper); border: 1px solid var(--tepat-border); border-radius: 8px; gap: 0 !important; }
-.st-key-summary [data-testid='stColumn'] + [data-testid='stColumn'] { border-left: 1px solid var(--tepat-border); }
-.st-key-summary [data-testid='stMetric'] { padding: 0.95rem 1.15rem; }
+.st-key-summary [data-testid='stHorizontalBlock'], .st-key-summary_seeds [data-testid='stHorizontalBlock'], .st-key-summary_unreg [data-testid='stHorizontalBlock'] { background: var(--tepat-paper); border: 1px solid var(--tepat-border); border-radius: 8px; gap: 0 !important; }
+.st-key-summary [data-testid='stColumn'] + [data-testid='stColumn'], .st-key-summary_seeds [data-testid='stColumn'] + [data-testid='stColumn'], .st-key-summary_unreg [data-testid='stColumn'] + [data-testid='stColumn'] { border-left: 1px solid var(--tepat-border); }
+.st-key-summary [data-testid='stMetric'], .st-key-summary_seeds [data-testid='stMetric'], .st-key-summary_unreg [data-testid='stMetric'] { padding: 0.95rem 1.15rem; }
 [data-testid='stMetricLabel'] p { font-size: 0.77rem !important; font-weight: 600; }
 [data-testid='stMetricValue'] { font-size: 1.5rem !important; font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 [data-testid='stMetricValue'] > div { white-space: normal !important; }
-.st-key-capacity { background: #e5f0ef; border-color: #cadedd; }
+.st-key-capacity, .st-key-unreg_capacity { background: #e5f0ef; border-color: #cadedd; }
 .st-key-capacity h3 { font-size: 0.9rem !important; }
 .st-key-capacity [data-testid='stVerticalBlock'] { gap: 0.45rem; }
 [data-testid='stVerticalBlockBorderWrapper'] { border-radius: 10px; }
@@ -141,8 +141,8 @@ h4 { font-size: 1rem !important; }
   [data-testid='stMain'] [data-testid='stHorizontalBlock'] { flex-wrap: wrap; }
   [data-testid='stMain'] [data-testid='stColumn'] { min-width: 100% !important; width: 100% !important; flex: 1 1 100% !important; }
   h1 { font-size: 1.6rem !important; }
-  .st-key-summary [data-testid='stColumn'] + [data-testid='stColumn'] { border-left: 0; border-top: 1px solid var(--tepat-border); }
-  .st-key-summary [data-testid='stMetricValue'] { font-size: 1.3rem !important; overflow-wrap: anywhere; }
+  .st-key-summary [data-testid='stColumn'] + [data-testid='stColumn'], .st-key-summary_seeds [data-testid='stColumn'] + [data-testid='stColumn'], .st-key-summary_unreg [data-testid='stColumn'] + [data-testid='stColumn'] { border-left: 0; border-top: 1px solid var(--tepat-border); }
+  .st-key-summary [data-testid='stMetricValue'], .st-key-summary_seeds [data-testid='stMetricValue'], .st-key-summary_unreg [data-testid='stMetricValue'] { font-size: 1.3rem !important; overflow-wrap: anywhere; }
   [data-testid='stMetricLabel'] p { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
   .app-footer { flex-direction: column; gap: 0.4rem; }
   [data-testid='stMain'] [data-testid='stVerticalBlock'] { gap: 0.85rem; }

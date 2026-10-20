@@ -40,6 +40,7 @@ from tepat import scorer  # noqa: E402
 if str(ROOT / "app") not in sys.path:  # drafting_panel.py sits next to this script
     sys.path.insert(0, str(ROOT / "app"))
 import drafting_panel  # noqa: E402
+from tepat import drafting  # noqa: E402
 
 DATA = Path(os.environ.get("TEPAT_DATA", ROOT / "data"))
 RESULTS = Path(os.environ.get("TEPAT_RESULTS", ROOT / "results"))
@@ -248,6 +249,16 @@ def follow_up_panel(store: K.CaseStore, branch: str, eid: str, r: pd.Series) -> 
             late = case["due_date"] and case["due_date"] < datetime.now().date().isoformat()
             line += f" Tindak lanjut berikutnya {tanggal(case['due_date'])}" + (" (lewat jadwal)." if late else ".")
         st.markdown(line)
+        sug = st.session_state.get("fu_suggest")
+        if sug and sug[:2] == (branch, eid) and sug[3] and case["status"] != K.CLOSED and sug[3] != case["status"]:
+            s1, s2 = st.columns([3, 1], gap="large", vertical_alignment="center")
+            s1.info(f"{sug[2]} sudah disetujui. Saran status berikutnya: {sug[3]}. Sistem tidak mengirim apa pun; "
+                    "ubah status setelah dokumen benar-benar dikirim atau pemeriksaan dijadwalkan.")
+            if s2.button(f"Ubah ke {sug[3]}", key="fu_apply_suggest", width="stretch"):
+                store.update(cid, status=sug[3])
+                st.session_state.pop("fu_suggest", None)
+                flash(f"Status diubah ke {sug[3]}.")
+                st.rerun()
         if case["source"] == "contoh":
             st.caption("Kasus contoh untuk demo. Hasil kasus contoh yang sudah selesai diambil dari kunci jawaban sintetis.")
         if case["status"] != K.CLOSED:
@@ -488,12 +499,21 @@ if view == "Kasus perusahaan":
                 color=alt.Color("Badan:N", scale=alt.Scale(range=["#087f82", "#d48b4a"]), legend=alt.Legend(orient="bottom", title=None)),
                 tooltip=["Bulan", "Badan", "Terlambat (hari)", alt.Tooltip("Kurang bayar:Q", format=",.0f")]).properties(height=210).configure(**CHART_CONFIG),
                 theme=None, width="stretch")
-    # Draf dokumen (feature/drafting): evidence-only drafts with human approval; nothing is sent.
-    # HOOK(case-follow-up): record the approval in case history here. Today it only stores it in session state.
+    # Draf dokumen: evidence-only drafts with human approval; nothing is sent. An approval is written to the
+    # case history when the employer has a case, and the follow-up panel then offers the next status.
     def on_draft_approved(employer_id: str, doc_type: str, text: str) -> None:
         st.session_state.setdefault("approved_drafts", {})[f"{employer_id}:{doc_type}"] = {
             "employer_id": employer_id, "doc_type": doc_type, "text": text,
             "approved_at": datetime.now().isoformat(timespec="seconds")}
+        label = drafting.DOC_LABELS[doc_type]
+        if store.get(branch, employer_id) is None:
+            st.info("Persetujuan belum tercatat di riwayat karena perusahaan ini belum punya tindak lanjut. "
+                    "Tekan Mulai tindak lanjut di atas, lalu setujui draf lagi.")
+            return
+        nxt = store.record_draft_approval(branch, employer_id, doc_type, label)
+        st.session_state["fu_suggest"] = (branch, employer_id, label, nxt)
+        flash(f"{label} disetujui dan dicatat di riwayat tindak lanjut.")
+        st.rerun()
     drafting_panel.render(eid, r, f_, reg.loc[eid], SEKTOR[reg.at[eid, "sector"]], on_approved=on_draft_approved)
     with st.expander("Kunci jawaban (khusus demo sintetis)"):
         st.caption("Tidak tersedia bagi petugas di dunia nyata. Tidak dipakai untuk menentukan peringkat.")

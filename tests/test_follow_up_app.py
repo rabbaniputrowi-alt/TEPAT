@@ -84,3 +84,30 @@ def test_bulk_start_covers_the_budget_and_skips_existing_cases():
     assert created > 50
     assert app.button(key="bulk_follow_up").disabled  # nothing left to start
     assert set(store.cases("B").source) == {"contoh", "massal"}
+
+
+def test_approved_draft_lands_in_case_history_and_offers_next_status():
+    app = _app()
+    store = app.session_state["case_store"]
+    app.sidebar.radio(key="view").set_value("Kasus perusahaan").run()
+    ranked = pd.read_parquet(Path(__file__).resolve().parents[1] / "demo" / "B" / "ranked.parquet")
+    eid = next(e for e in ranked[ranked.queue == "inspeksi"].sort_values("rank").index if store.get("B", e) is None)
+    app.selectbox(key="case_employer").set_value(eid).run()
+    # approving without a case only explains how to record it
+    app.radio(key="draft_type").set_value("surat_kepatuhan").run()
+    app.button(key="draft_generate").click().run()
+    app.button(key="draft_approve").click().run()
+    assert not app.exception
+    assert store.get("B", eid) is None
+    assert "belum tercatat di riwayat" in _text(app)
+    app.button(key="fu_start").click().run()
+    app.button(key="draft_generate").click().run()
+    app.button(key="draft_approve").click().run()
+    assert not app.exception
+    case = store.get("B", eid)
+    ev = store.events(case["case_id"])
+    assert ev.kind.iloc[-1] == "draf disetujui" and "Tidak dikirim" in ev.detail.iloc[-1]
+    assert case["status"] == "Baru"  # approval alone never changes the status
+    app.button(key="fu_apply_suggest").click().run()
+    assert not app.exception
+    assert store.get("B", eid)["status"] == "Surat dikirim"

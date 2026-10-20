@@ -32,8 +32,8 @@ DEFAULT_FOLLOW_UP_DAYS = 14
 # Approving a draft (feature #2) suggests the next status. Nothing is sent.
 DRAFT_NEXT_STATUS = {
     "brief": "Pemeriksaan dijadwalkan",
-    "compliance_letter": "Surat dikirim",
-    "cicilan_letter": "Surat dikirim",
+    "surat_kepatuhan": "Surat dikirim",
+    "surat_cicilan": "Surat dikirim",
 }
 
 _SCHEMA = """

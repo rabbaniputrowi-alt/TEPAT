@@ -94,9 +94,9 @@ def test_sandboxes_are_isolated():
 
 def test_draft_approval_hook_logs_and_suggests_next_status():
     s = K.CaseStore.sandbox()
-    assert s.record_draft_approval("B", "PK1", "compliance_letter", "Surat kepatuhan") is None  # no case yet
+    assert s.record_draft_approval("B", "PK1", "surat_kepatuhan", "Surat kepatuhan") is None  # no case yet
     cid = _open(s)
-    nxt = s.record_draft_approval("B", "PK1", "compliance_letter", "Surat kepatuhan")
+    nxt = s.record_draft_approval("B", "PK1", "surat_kepatuhan", "Surat kepatuhan")
     assert nxt == "Surat dikirim"
     assert "Tidak dikirim oleh sistem" in s.events(cid).detail.iloc[-1]
 
@@ -115,3 +115,8 @@ def test_example_seed_covers_every_stage_and_is_consistent_with_the_answer_key()
     for _, r in done.iterrows():
         assert bool(truth.at[r.employer_id, "is_violator"]) == (r.outcome in K.VIOLATION_OUTCOMES)
     assert (C.opened_at <= "2026-10-21T23:59:59").all()
+
+
+def test_draft_types_match_the_drafting_module():
+    from tepat import drafting
+    assert set(K.DRAFT_NEXT_STATUS) == set(drafting.DOC_LABELS)

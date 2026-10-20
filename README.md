@@ -55,6 +55,20 @@ What a fresh clone and Streamlit Community Cloud run on. Built from the full run
 Worker reports from the demo button are written to `results/tips.csv` on the app's container: shared by all
 visitors and lost when the app restarts. They are demo records only.
 
+## Draf dokumen (case view)
+
+The case page drafts three documents in Bahasa Indonesia from observed evidence only (scorer output,
+features, registry; never the answer key): an internal inspection brief, a compliance letter offering
+self-correction within a deadline (14 calendar days by default), and an instalment offer for cases in the
+cicilan queue. Every draft is labelled as a synthetic draft that is not sent. The inspector reviews it,
+copies the plain text or downloads a DOCX, and approves it; approval only marks it in the session.
+
+A deterministic template always works. An optional rewrite through any OpenAI-compatible
+`/chat/completions` endpoint is enabled only when all three of `TEPAT_LLM_API_KEY`, `TEPAT_LLM_BASE_URL`
+(for example `https://host/v1`) and `TEPAT_LLM_MODEL` are set as environment variables or in
+`.streamlit/secrets.toml`. No key ships with the repo. A fact checker rejects any rewrite that adds a number,
+date, name or legal citation not present in the template or the evidence, and the template is used instead.
+
 ## Layout
 
 | Path | What |
@@ -65,6 +79,8 @@ visitors and lost when the app restarts. They are demo records only.
 | `src/tepat/scorer.py` | reads `observed/` only: fuzzy TK↔KS matching, ~25 signals, Rp estimate, P(violation), priority, reasons |
 | `src/tepat/bench.py` | compares rankings under a fixed inspection-hour budget; the only scorer-side module that reads `truth/` |
 | `app/streamlit_app.py` | inspector list, case page, benchmark, fairness + random arm, worker self-check (*Cek Kepesertaan Saya*) |
+| `src/tepat/drafting.py` | evidence-only drafts (brief, compliance letter, cicilan offer), fact checker, optional LLM rewrite, DOCX |
+| `app/drafting_panel.py` | the case page's *Draf dokumen* panel: pick, review, copy, download, approve |
 | `app/requirements.txt` | pinned runtime dependencies for Streamlit Community Cloud (exported from `uv.lock`) |
 | `demo/` | committed demo slice; `scripts/make_demo_slice.py` rebuilds it |
 | `tests/test_wall.py` | the scorer never imports the generator or reads `truth/`; legal rules hold |

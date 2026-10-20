@@ -37,6 +37,9 @@ if importlib.util.find_spec("tepat") is None:  # Community Cloud installs requir
 from tepat import cases as K  # noqa: E402
 from tepat import rules as R  # noqa: E402
 from tepat import scorer  # noqa: E402
+if str(ROOT / "app") not in sys.path:  # drafting_panel.py sits next to this script
+    sys.path.insert(0, str(ROOT / "app"))
+import drafting_panel  # noqa: E402
 
 DATA = Path(os.environ.get("TEPAT_DATA", ROOT / "data"))
 RESULTS = Path(os.environ.get("TEPAT_RESULTS", ROOT / "results"))
@@ -485,6 +488,13 @@ if view == "Kasus perusahaan":
                 color=alt.Color("Badan:N", scale=alt.Scale(range=["#087f82", "#d48b4a"]), legend=alt.Legend(orient="bottom", title=None)),
                 tooltip=["Bulan", "Badan", "Terlambat (hari)", alt.Tooltip("Kurang bayar:Q", format=",.0f")]).properties(height=210).configure(**CHART_CONFIG),
                 theme=None, width="stretch")
+    # Draf dokumen (feature/drafting): evidence-only drafts with human approval; nothing is sent.
+    # HOOK(case-follow-up): record the approval in case history here. Today it only stores it in session state.
+    def on_draft_approved(employer_id: str, doc_type: str, text: str) -> None:
+        st.session_state.setdefault("approved_drafts", {})[f"{employer_id}:{doc_type}"] = {
+            "employer_id": employer_id, "doc_type": doc_type, "text": text,
+            "approved_at": datetime.now().isoformat(timespec="seconds")}
+    drafting_panel.render(eid, r, f_, reg.loc[eid], SEKTOR[reg.at[eid, "sector"]], on_approved=on_draft_approved)
     with st.expander("Kunci jawaban (khusus demo sintetis)"):
         st.caption("Tidak tersedia bagi petugas di dunia nyata. Tidak dipakai untuk menentukan peringkat.")
         t = load_truth(str(branch_dir)).loc[eid]

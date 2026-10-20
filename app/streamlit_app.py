@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if importlib.util.find_spec("tepat") is None:  # Community Cloud installs requirements only, not the package
     sys.path.insert(0, str(ROOT / "src"))
 
+from tepat import cases as K  # noqa: E402
 from tepat import rules as R  # noqa: E402
 from tepat import scorer  # noqa: E402
 
@@ -41,6 +42,8 @@ DATA = Path(os.environ.get("TEPAT_DATA", ROOT / "data"))
 RESULTS = Path(os.environ.get("TEPAT_RESULTS", ROOT / "results"))
 DEMO = ROOT / "demo"
 TIPS = RESULTS / "tips.csv"
+CASES_FILE = RESULTS / "cases.sqlite"
+SUMBER_KASUS = {"contoh": "Contoh demo", "petugas": "Petugas", "massal": "Mulai massal"}
 BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 SEKTOR = {"C": "Manufaktur", "F": "Konstruksi", "G": "Perdagangan", "H": "Logistik", "I": "Akomodasi & Makan",
           "J": "Informasi & Kom.", "K": "Keuangan", "Q": "Kesehatan", "A": "Pertanian"}
@@ -181,15 +184,126 @@ def open_case(employer_id: str) -> None:
     st.session_state["case_employer"] = employer_id
 
 
+def tanggal(iso: str | None) -> str:
+    if not iso:
+        return "-"
+    d = datetime.fromisoformat(iso)
+    return f"{d.day} {BULAN[d.month - 1]} {d.year}"
+
+
+def waktu(iso: str) -> str:
+    d = datetime.fromisoformat(iso)
+    return f"{tanggal(iso)}, {d.hour:02d}.{d.minute:02d}"
+
+
+@st.cache_resource
+def persistent_store(path: str) -> K.CaseStore:
+    return K.CaseStore.persistent(path)
+
+
+def case_store(demo_mode: bool) -> K.CaseStore:
+    """Local full run: one SQLite file that persists. Demo slice (public app): a private in-memory
+    store per browser session, so visitors never see each other's edits. TEPAT_CASES overrides."""
+    mode = os.environ.get("TEPAT_CASES") or ("sandbox" if demo_mode else "persistent")
+    if mode == "persistent":
+        return persistent_store(str(CASES_FILE))
+    if "case_store" not in st.session_state:
+        st.session_state["case_store"] = K.CaseStore.sandbox()
+    return st.session_state["case_store"]
+
+
+def flash(message: str) -> None:
+    st.session_state["fu_flash"] = message
+
+
+def follow_up_panel(store: K.CaseStore, branch: str, eid: str, r: pd.Series) -> None:
+    """Case page: start follow-up, change status, inspector and date, add notes, close with an outcome."""
+    case = store.get(branch, eid)
+    with st.container(border=True, key="follow_up"):
+        st.subheader("Tindak lanjut")
+        if msg := st.session_state.pop("fu_flash", None):
+            st.success(msg)
+        problem = st.session_state.pop("fu_error", None)
+        if problem:
+            st.error(problem)
+        if case is None:
+            st.caption("Belum ada tindak lanjut untuk perusahaan ini. Mulai bila petugas memutuskan untuk menindaklanjuti.")
+            if st.button("Mulai tindak lanjut", key="fu_start", type="primary"):
+                store.open_case(branch, eid, est_rp=r.est_rp, p_violation=r.p_violation, action=r.action)
+                flash("Tindak lanjut dimulai dengan status Baru.")
+                st.rerun()
+            return
+        cid = int(case["case_id"])
+        # Widget keys carry the case and its history length, so after every saved change the form starts
+        # again from the stored case instead of keeping the browser's previous inputs.
+        v = f"{branch}_{cid}_{len(store.events(cid))}"
+        line = f"Status **{case['status']}**. {case['owner']}."
+        if case["status"] == K.CLOSED:
+            line += (f" Hasil: {K.OUTCOMES[case['outcome']]}, Rp dipulihkan {jt(case['recovered_rp'] or 0)}."
+                     f" Selesai {tanggal(case['closed_at'])}.")
+        else:
+            late = case["due_date"] and case["due_date"] < datetime.now().date().isoformat()
+            line += f" Tindak lanjut berikutnya {tanggal(case['due_date'])}" + (" (lewat jadwal)." if late else ".")
+        st.markdown(line)
+        if case["source"] == "contoh":
+            st.caption("Kasus contoh untuk demo. Hasil kasus contoh yang sudah selesai diambil dari kunci jawaban sintetis.")
+        if case["status"] != K.CLOSED:
+            with st.form(key=f"fu_update_form_{v}"):
+                c1, c2, c3 = st.columns(3)
+                status = c1.selectbox("Status", K.OPEN_STATUSES, index=K.OPEN_STATUSES.index(case["status"]), key=f"fu_status_{v}")
+                owner = c2.selectbox("Pemeriksa", K.INSPECTORS, index=K.INSPECTORS.index(case["owner"]), key=f"fu_owner_{v}")
+                due = c3.date_input("Tanggal tindak lanjut", value=datetime.fromisoformat(case["due_date"]).date()
+                                    if case["due_date"] else None, format="DD/MM/YYYY", key=f"fu_due_{v}")
+                note = st.text_area("Catatan", key=f"fu_note_{v}", height=80, placeholder="Misalnya hasil telepon ke bagian personalia")
+                if st.form_submit_button("Simpan perubahan"):
+                    changes = store.update(cid, status=status, owner=owner, due=due, note=note)
+                    flash("Perubahan tersimpan di riwayat." if changes else "Tidak ada perubahan.")
+                    st.rerun()
+            with st.expander("Selesaikan kasus dengan hasil", expanded=bool(problem)):
+                with st.form(key=f"fu_close_form_{v}"):
+                    outcome = st.radio("Hasil pemeriksaan", list(K.OUTCOMES), index=None, format_func=K.OUTCOMES.get,
+                                       key=f"fu_outcome_{v}")
+                    recovered = st.number_input("Rp dipulihkan (0 bila belum ada)", min_value=0, value=0, step=100_000,
+                                                key=f"fu_recovered_{v}")
+                    close_note = st.text_input("Catatan penutup", key=f"fu_close_note_{v}")
+                    if st.form_submit_button("Tutup kasus"):
+                        try:
+                            store.close(cid, outcome=outcome, recovered_rp=float(recovered), note=close_note)
+                        except K.CaseError as e:
+                            st.session_state["fu_error"] = str(e)
+                            st.rerun()
+                        else:
+                            flash("Kasus selesai. Hasilnya masuk ringkasan di halaman Tindak lanjut.")
+                            st.rerun()
+        else:
+            with st.expander("Buka kembali kasus", expanded=bool(problem)):
+                with st.form(key=f"fu_reopen_form_{v}"):
+                    reason = st.text_input("Alasan membuka kembali", key=f"fu_reopen_reason_{v}")
+                    if st.form_submit_button("Buka kembali"):
+                        try:
+                            store.reopen(cid, reason=reason)
+                        except K.CaseError as e:
+                            st.session_state["fu_error"] = str(e)
+                            st.rerun()
+                        else:
+                            flash("Kasus dibuka kembali dengan status Menunggu koreksi.")
+                            st.rerun()
+        with st.expander("Riwayat tindak lanjut"):
+            ev = store.events(cid)
+            st.dataframe(pd.DataFrame({"Waktu": ev["at"].map(waktu), "Oleh": ev.actor, "Jenis": ev.kind, "Keterangan": ev.detail}),
+                         hide_index=True, width="stretch")
+
+
 ASSETS = ROOT / "app" / "assets"
 font_data = base64.b64encode((ASSETS / "public-sans-latin.woff2").read_bytes()).decode("ascii")
 css = (ASSETS / "workspace.css").read_text(encoding="utf-8").replace("__PUBLIC_SANS__", font_data)
 st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
-VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
+VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Tindak lanjut", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
          "Cek kepesertaan saya"]
 DESCRIPTIONS = {
     "Daftar prioritas": "Tentukan kapasitas pemeriksaan. Dahulukan potensi pemulihan per jam tertinggi.",
     "Kasus perusahaan": "Telusuri sinyal, dasar hukum, dan dokumen sebelum mengambil keputusan.",
+    "Tindak lanjut": "Pantau kasus yang sedang ditangani, jadwal berikutnya, dan hasil pemeriksaan.",
     "Usaha belum terdaftar": "Usaha yang wajib mendaftar ke BPJS Kesehatan tetapi belum ada di registri. Daftar terpisah dari antrean utama.",
     "Benchmark": "Bandingkan metode dengan anggaran jam yang sama. Semua hasil berasal dari simulasi sintetis.",
     "Keadilan & jalur acak": "Pantau siapa yang terpilih dan siapa yang terlewat. Jangan hanya belajar dari kasus berisiko tinggi.",
@@ -217,6 +331,9 @@ except FileNotFoundError:
     st.error("Data demo belum tersedia. Jalankan perintah berikut di folder repo, lalu muat ulang halaman.")
     st.code("uv run tepat all", language="bash")
     st.stop()
+store = case_store(demo_mode)
+if store.mode == "sandbox":
+    K.seed_examples(store, branch, ranked, load_truth(str(branch_dir)))
 lookback = 12
 D = R.SCORING_DAY
 st.sidebar.markdown(f'<div class="sidebar-context"><b>{ribu(len(reg))}</b> perusahaan sintetis<br>'
@@ -252,6 +369,16 @@ if view == "Daftar prioritas":
         m2.metric("Perusahaan dalam anggaran", f"{len(sel)}")
         m3.metric("Perkiraan Rp per jam", jt(sel.expected_rp.sum() / max(1, sel.hours.sum())))
         m4.metric("Antrean cicilan", f"{int((L.queue == 'cicilan').sum())}")
+    fresh = [e for e in insp.index if e in in_budget and store.get(branch, e) is None]
+    bulk_left, bulk_right = st.columns([3, 1], gap="large", vertical_alignment="center")
+    bulk_left.caption(f"{len(fresh)} dari {len(in_budget)} perusahaan dalam anggaran belum punya tindak lanjut. "
+                      "Memulai tindak lanjut hanya membuat kasus berstatus Baru; tidak ada surat yang dikirim.")
+    if bulk_right.button("Mulai tindak lanjut", key="bulk_follow_up", disabled=not fresh, width="stretch"):
+        created, skipped = store.bulk_open(branch, L.loc[fresh, ["est_rp", "p_violation", "action"]])
+        st.session_state["bulk_flash"] = f"{created} kasus baru dibuat. Lihat halaman Tindak lanjut."
+        st.rerun()
+    if msg := st.session_state.pop("bulk_flash", None):
+        st.success(msg)
     with st.expander("Filter daftar", expanded=False):
         c1, c2 = st.columns(2)
         kab = c1.multiselect("Kab/Kota", sorted(L.kabkota.unique()), default=sorted(L.kabkota.unique()), key="districts")
@@ -311,6 +438,7 @@ if view == "Kasus perusahaan":
     n_tip = int((tips.employer_id == eid).sum()) if len(tips) else 0
     if n_tip:
         st.warning(f"{n_tip} laporan demo pekerja masuk melalui Cek Kepesertaan Saya untuk perusahaan ini.")
+    follow_up_panel(store, branch, eid, r)
     left, right = st.columns([3, 2], gap="large")
     with left:
         with st.container(border=True):
@@ -362,6 +490,76 @@ if view == "Kasus perusahaan":
         t = load_truth(str(branch_dir)).loc[eid]
         st.write({"melanggar": bool(t.is_violator), "varian yang ditanam": t.variants or "-",
                   "look-alike jujur": t.lookalikes or "-", "Rp dapat dipulihkan (sebenarnya)": rp(t.recoverable_rp_true)})
+
+# 2a. Follow-up board ----------------------------------------------------------
+if view == "Tindak lanjut":
+    if store.mode == "sandbox":
+        st.info("Versi daring: setiap pengunjung mendapat ruang kasus sendiri yang sudah berisi beberapa contoh. "
+                "Perubahan Anda tidak terlihat oleh pengunjung lain dan hilang saat sesi ditutup. Tidak ada surat yang dikirim.")
+    else:
+        st.caption(f"Disimpan di {CASES_FILE.name} pada komputer ini. Tidak ada surat yang dikirim.")
+        if store.count(branch) == 0 and st.button("Isi contoh kasus", key="fu_seed"):
+            K.seed_examples(store, branch, ranked, load_truth(str(branch_dir)))
+            st.rerun()
+    C = store.cases(branch)
+    sm = store.summary(branch)
+    with st.container(key="summary"):
+        a, b, c, d = st.columns(4)
+        a.metric("Kasus terbuka", f"{sm['open']}", help=f"{sm['overdue']} lewat jadwal tindak lanjut")
+        b.metric("Kasus selesai", f"{sm['closed']}")
+        c.metric("Pelanggaran terbukti", f"{sm['confirmed']} dari {sm['closed']}" if sm["closed"] else "-",
+                 help="Pelanggaran terbukti, dikoreksi mandiri, atau masuk cicilan")
+        d.metric("Rp dipulihkan", jt(sm["recovered_rp"]), help="Jumlah dari kasus yang sudah selesai")
+    if sm["closed"]:
+        st.caption(f"Dari {sm['closed']} kasus selesai: {jt(sm['recovered_rp'])} dipulihkan, dibanding perkiraan TEPAT "
+                   f"{jt(sm['estimated_rp_closed'])}. {sm['false_alarms']} kasus tanpa pelanggaran (alarm palsu). "
+                   f"{sm['overdue']} kasus terbuka lewat jadwal.")
+    if C.empty:
+        st.info("Belum ada kasus. Mulai dari halaman Daftar prioritas atau Kasus perusahaan.")
+    else:
+        today = datetime.now().date().isoformat()
+        C["name"] = C.employer_id.map(reg["name"])
+        C["late"] = (C.status != K.CLOSED) & (C.due_date < today)
+        with st.expander("Filter kasus", expanded=False):
+            f1, f2, f3 = st.columns(3)
+            pick_status = f1.multiselect("Status", K.STATUSES, default=K.STATUSES, key="fu_filter_status")
+            pick_owner = f2.multiselect("Pemeriksa", K.INSPECTORS, default=K.INSPECTORS, key="fu_filter_owner")
+            only_late = f3.checkbox("Hanya yang lewat jadwal", key="fu_filter_late")
+        V = C[C.status.isin(pick_status) & C.owner.isin(pick_owner) & (C.late | ~only_late)].copy()
+        V["order"] = np.where(V.status == K.CLOSED, 1, 0)
+        V = V.sort_values(["order", "due_date", "case_id"])
+        st.subheader("Kasus")
+        st.dataframe(pd.DataFrame({
+            "Perusahaan": V["name"], "Status": V.status, "Pemeriksa": V.owner,
+            "Tindak lanjut": V.due_date.map(tanggal),
+            "Jadwal": np.where(V.status == K.CLOSED, "-", np.where(V.late, "Lewat jadwal", "Sesuai jadwal")),
+            "Saran sistem": V.action, "Perkiraan Rp": V.est_rp.map(jt),
+            "Hasil": V.outcome.map(K.OUTCOMES).fillna("-"),
+            "Rp dipulihkan": [jt(x) if pd.notna(x) else "-" for x in V.recovered_rp],
+            "Sumber": V.source.map(SUMBER_KASUS)}), hide_index=True, width="stretch", height=min(460, 38 + 35 * len(V)),
+            column_order=["Perusahaan", "Status", "Pemeriksa", "Tindak lanjut", "Jadwal", "Hasil", "Rp dipulihkan",
+                          "Perkiraan Rp", "Saran sistem", "Sumber"],
+            column_config={"Perusahaan": st.column_config.TextColumn(width="medium"),
+                           "Status": st.column_config.TextColumn(width="medium"),
+                           "Hasil": st.column_config.TextColumn(width="medium"),
+                           "Saran sistem": st.column_config.TextColumn(width="medium")})
+        if len(V):
+            o1, o2 = st.columns([3, 1], gap="large", vertical_alignment="bottom")
+            target = o1.selectbox("Pilih kasus", list(V.employer_id), key="fu_pick",
+                                  format_func=lambda e: f"{reg.at[e, 'name']} ({C.set_index('employer_id').at[e, 'status']})")
+            o2.button("Buka kasus", key="fu_open_case", type="primary", width="stretch", on_click=open_case, args=(target,))
+        if (C.source == "contoh").any():
+            st.caption("Baris bersumber Contoh demo dibuat otomatis agar papan ini tidak kosong. Hasil kasus contoh yang selesai "
+                       "diambil dari kunci jawaban sintetis; di dunia nyata hasil hanya diketahui setelah pemeriksaan.")
+    with st.container(border=True):
+        st.subheader("Hasil sebagai data latih")
+        labels = store.export_labels(branch)
+        st.caption("Setiap kasus selesai menjadi satu label (1 = pelanggaran terbukti, 0 = tidak ditemukan). TEPAT tidak "
+                   "melatih ulang model di aplikasi ini. Label dikumpulkan untuk pelatihan ulang berkala setelah ditinjau, "
+                   "bersama hasil jalur acak agar model tidak hanya belajar dari kasus yang ia pilih sendiri.")
+        st.download_button("Unduh label hasil (CSV)", labels.to_csv(index=False).encode("utf-8"),
+                           file_name=f"tepat_label_hasil_{branch}.csv", mime="text/csv", key="fu_export",
+                           disabled=labels.empty)
 
 # 2b. Second list: businesses missing from the BPJS Kesehatan registry ------------------
 if view == "Usaha belum terdaftar":

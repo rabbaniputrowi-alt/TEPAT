@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app" / "streamlit_app.py"
 DEMO = ROOT / "demo"
 MANIFEST = json.loads((DEMO / "manifest.json").read_text(encoding="utf-8"))
-VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
+VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Tindak lanjut", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
          "Cek kepesertaan saya"]
 EMPLOYER_LEVEL = ["employer_registry", "billing", "fktp", "umk", "inspection_cost"]
 WORKER_LEVEL = ["ks_membership", "tk_exchange", "ks_members", "care_events", "segment_moves"]

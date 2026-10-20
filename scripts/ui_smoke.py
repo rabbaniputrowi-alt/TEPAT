@@ -9,9 +9,9 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
+VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Tindak lanjut", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
          "Cek kepesertaan saya"]
-SCROLL_VIEWS = ("Usaha belum terdaftar", "Benchmark")   # long views: also capture each screen below the fold
+SCROLL_VIEWS = ("Tindak lanjut", "Usaha belum terdaftar", "Benchmark")   # long views: also capture each screen below the fold
 parser = argparse.ArgumentParser()
 parser.add_argument("--url", default="http://localhost:8501")
 parser.add_argument("--out", default=str(ROOT / ".impeccable" / "review"))

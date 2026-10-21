@@ -11,8 +11,11 @@ an in-memory database, so each visitor of the public demo gets a private copy.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
+from functools import wraps
 from pathlib import Path
+from threading import RLock
 
 import pandas as pd
 
@@ -79,14 +82,57 @@ def _iso(d: date | str | None) -> str | None:
     return d if isinstance(d, str) else d.isoformat()
 
 
+def _serialized(method):
+    @wraps(method)
+    def call(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return call
+
+
+def _transactional(method):
+    @wraps(method)
+    def call(self, *args, **kwargs):
+        with self._transaction():
+            return method(self, *args, **kwargs)
+    return call
+
+
 class CaseStore:
     def __init__(self, conn: sqlite3.Connection, mode: str, path: Path | None = None):
         self.conn = conn
         self.mode = mode
         self.path = path
+        self._lock = RLock()
+        self._transaction_depth = 0
         self.conn.row_factory = sqlite3.Row
+        self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.executescript(_SCHEMA)
         self.conn.commit()
+
+    @contextmanager
+    def _transaction(self):
+        """Serialize validation and writes, including nested report/case work.
+
+        The lock protects the shared connection. BEGIN IMMEDIATE orders writers
+        on other connections before they read mutable state. Only the outermost
+        operation commits or rolls back.
+        """
+        with self._lock:
+            outermost = self._transaction_depth == 0
+            if outermost:
+                self.conn.execute("BEGIN IMMEDIATE")
+            self._transaction_depth += 1
+            try:
+                yield
+                if outermost:
+                    self.conn.commit()
+            except BaseException:
+                if outermost:
+                    self.conn.rollback()
+                raise
+            finally:
+                self._transaction_depth -= 1
 
     @classmethod
     def persistent(cls, path: str | Path) -> "CaseStore":
@@ -99,23 +145,28 @@ class CaseStore:
         return cls(sqlite3.connect(":memory:", check_same_thread=False), "sandbox")
 
     # ------------------------------------------------------------------ reads
+    @_serialized
     def get(self, branch: str, employer_id: str) -> dict | None:
         row = self.conn.execute("SELECT * FROM cases WHERE branch = ? AND employer_id = ?", (branch, employer_id)).fetchone()
         return dict(row) if row else None
 
+    @_serialized
     def by_id(self, case_id: int) -> dict:
         row = self.conn.execute("SELECT * FROM cases WHERE case_id = ?", (case_id,)).fetchone()
         if row is None:
             raise CaseError(f"Kasus {case_id} tidak ditemukan.")
         return dict(row)
 
+    @_serialized
     def cases(self, branch: str) -> pd.DataFrame:
         return pd.read_sql_query("SELECT * FROM cases WHERE branch = ? ORDER BY case_id", self.conn, params=(branch,))
 
+    @_serialized
     def events(self, case_id: int) -> pd.DataFrame:
         return pd.read_sql_query("SELECT at, actor, kind, detail FROM events WHERE case_id = ? ORDER BY event_id",
                                  self.conn, params=(case_id,))
 
+    @_serialized
     def count(self, branch: str) -> int:
         return int(self.conn.execute("SELECT COUNT(*) FROM cases WHERE branch = ?", (branch,)).fetchone()[0])
 
@@ -124,10 +175,12 @@ class CaseStore:
         self.conn.execute("INSERT INTO events (case_id, at, actor, kind, detail) VALUES (?, ?, ?, ?, ?)",
                           (case_id, at or _now(), actor, kind, detail))
 
+    @_transactional
     def open_case(self, branch: str, employer_id: str, *, est_rp: float, p_violation: float, action: str,
                   actor: str = "Petugas", source: str = "petugas", due: date | None = None,
                   at: str | None = None) -> int | None:
-        """Start follow-up. Returns the new case id, or None when the employer already has a case."""
+        """Start follow-up, or return None when the employer already has a case.
+        Nested calls participate in the enclosing report-link transaction."""
         if self.get(branch, employer_id) is not None:
             return None
         due = due or (date.today() + timedelta(days=DEFAULT_FOLLOW_UP_DAYS))
@@ -137,9 +190,9 @@ class CaseStore:
             (branch, employer_id, UNASSIGNED, _iso(due), at or _now(), float(est_rp), float(p_violation), action, source))
         case_id = int(cur.lastrowid)
         self._event(case_id, actor, "dibuka", f"Tindak lanjut dimulai. Saran sistem: {action}", at)
-        self.conn.commit()
         return case_id
 
+    @_transactional
     def bulk_open(self, branch: str, rows: pd.DataFrame, *, actor: str = "Petugas") -> tuple[int, int]:
         """Open a case for every row (index = employer_id; columns est_rp, p_violation, action).
         Employers that already have a case, open or closed, are skipped. Returns (created, skipped)."""
@@ -151,6 +204,7 @@ class CaseStore:
             skipped += cid is None
         return created, skipped
 
+    @_transactional
     def update(self, case_id: int, *, status: str | None = None, owner: str | None = None,
                due: date | str | None = None, note: str | None = None, actor: str = "Petugas",
                at: str | None = None) -> list[str]:
@@ -183,9 +237,9 @@ class CaseStore:
         if note and note.strip():
             self._event(case_id, actor, "catatan", note.strip(), at)
             changes.append("catatan")
-        self.conn.commit()
         return changes
 
+    @_transactional
     def close(self, case_id: int, *, outcome: str | None, recovered_rp: float | None = None, note: str = "",
               actor: str = "Petugas", at: str | None = None) -> None:
         case = self.by_id(case_id)
@@ -202,8 +256,8 @@ class CaseStore:
                           (CLOSED, outcome, float(recovered_rp), at, case_id))
         detail = f"Selesai: {OUTCOMES[outcome]}. Rp dipulihkan {float(recovered_rp):,.0f}".replace(",", ".")
         self._event(case_id, actor, "selesai", detail + (f". {note.strip()}" if note.strip() else ""), at)
-        self.conn.commit()
 
+    @_transactional
     def reopen(self, case_id: int, *, reason: str, actor: str = "Petugas") -> None:
         case = self.by_id(case_id)
         if case["status"] != CLOSED:
@@ -213,8 +267,8 @@ class CaseStore:
         self.conn.execute("UPDATE cases SET status = 'Menunggu koreksi', outcome = NULL, recovered_rp = NULL, "
                           "closed_at = NULL WHERE case_id = ?", (case_id,))
         self._event(case_id, actor, "dibuka kembali", reason.strip())
-        self.conn.commit()
 
+    @_transactional
     def record_draft_approval(self, branch: str, employer_id: str, doc_type: str, label: str,
                               actor: str = "Petugas") -> str | None:
         """Hook for feature #2: log an approved draft in the case history.
@@ -223,11 +277,11 @@ class CaseStore:
         if case is None:
             return None
         self._event(case["case_id"], actor, "draf disetujui", f"{label} disetujui petugas. Tidak dikirim oleh sistem.")
-        self.conn.commit()
         nxt = DRAFT_NEXT_STATUS.get(doc_type)
         return nxt if nxt and case["status"] != CLOSED and nxt != case["status"] else None
 
     # ------------------------------------------------------------------ outcomes
+    @_serialized
     def summary(self, branch: str) -> dict:
         C = self.cases(branch)
         done = C[C.status == CLOSED]
@@ -241,6 +295,7 @@ class CaseStore:
             "overdue": int(((C.status != CLOSED) & (C.due_date < date.today().isoformat())).sum()),
         }
 
+    @_serialized
     def export_labels(self, branch: str) -> pd.DataFrame:
         """Closed cases as future training labels (1 = violation confirmed). Not used for training here."""
         C = self.cases(branch)

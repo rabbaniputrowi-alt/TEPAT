@@ -1,5 +1,5 @@
 """Case follow-up store: lifecycle rules, bulk start, outcomes, labels and the example seed."""
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -26,8 +26,10 @@ def _open(store, eid="PK1", branch="B", est=10e6, p=0.9):
 def test_case_lifecycle_records_every_change():
     s = K.CaseStore.sandbox()
     cid = _open(s)
+    assert cid is not None
     assert s.get("B", "PK1")["status"] == "Baru"
-    changes = s.update(cid, owner="Pemeriksa A", status="Ditugaskan", due=date(2026, 11, 5), note="Hubungi HRD")
+    changes = s.update(cid, owner="Pemeriksa A", status="Ditugaskan",
+                       due=date.today() + timedelta(days=30), note="Hubungi HRD")
     assert changes == ["status", "pemeriksa", "jadwal", "catatan"]
     s.close(cid, outcome="pelanggaran_terbukti", recovered_rp=12_500_000)
     case = s.by_id(cid)

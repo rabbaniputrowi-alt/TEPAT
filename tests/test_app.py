@@ -5,7 +5,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 APP = Path(__file__).resolve().parents[1] / "app" / "streamlit_app.py"
-VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Tindak lanjut", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
+VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Tindak lanjut", "Laporan pekerja", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
          "Cek kepesertaan saya"]
 
 
@@ -50,6 +50,8 @@ def test_interface_text_avoids_typographic_tells():
     sources = {
         "app": APP.read_text(encoding="utf-8"),
         "css": (APP.parent / "assets" / "workspace.css").read_text(encoding="utf-8"),
+        "reports_panel": (APP.parent / "reports_panel.py").read_text(encoding="utf-8"),
+        "reports_store": (APP.parent.parent / "src" / "tepat" / "reports.py").read_text(encoding="utf-8"),
     }
     for name, source in sources.items():
         for glyph in ("\u2014", "\u2013", "\u00b7", "\u2026"):

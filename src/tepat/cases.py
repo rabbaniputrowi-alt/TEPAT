@@ -126,8 +126,9 @@ class CaseStore:
 
     def open_case(self, branch: str, employer_id: str, *, est_rp: float, p_violation: float, action: str,
                   actor: str = "Petugas", source: str = "petugas", due: date | None = None,
-                  at: str | None = None) -> int | None:
-        """Start follow-up. Returns the new case id, or None when the employer already has a case."""
+                  at: str | None = None, _commit: bool = True) -> int | None:
+        """Start follow-up. Returns the new case id, or None when the employer already has a case.
+        `_commit=False` lets ReportStore include case creation in its report-link transaction."""
         if self.get(branch, employer_id) is not None:
             return None
         due = due or (date.today() + timedelta(days=DEFAULT_FOLLOW_UP_DAYS))
@@ -137,7 +138,8 @@ class CaseStore:
             (branch, employer_id, UNASSIGNED, _iso(due), at or _now(), float(est_rp), float(p_violation), action, source))
         case_id = int(cur.lastrowid)
         self._event(case_id, actor, "dibuka", f"Tindak lanjut dimulai. Saran sistem: {action}", at)
-        self.conn.commit()
+        if _commit:
+            self.conn.commit()
         return case_id
 
     def bulk_open(self, branch: str, rows: pd.DataFrame, *, actor: str = "Petugas") -> tuple[int, int]:

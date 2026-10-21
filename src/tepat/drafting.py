@@ -343,7 +343,8 @@ def _cicilan(ev: Evidence, deadline_days: int, issued: date) -> Draft:
                 "bukan surat teguran. Catatan tagihan kami untuk " + ev.name + " menunjukkan hal berikut:"]),
         ("Catatan pembayaran", facts_lines or ["- Tercatat kesulitan pembayaran iuran dalam 12 bulan terakhir."]),
         ("Penawaran program pembayaran bertahap",
-         ["Untuk membantu, kami menawarkan program pembayaran bertahap. Tunggakan dapat dilunasi secara bertahap sesuai "
+         ["Untuk membantu, kami menawarkan program pembayaran bertahap, dengan pola serupa Program REHAB (Rencana "
+          "Pembayaran Bertahap) BPJS Kesehatan. Tunggakan dapat dilunasi secara bertahap sesuai "
           "jadwal yang disepakati bersama, sementara iuran bulan berjalan tetap dibayar. Rincian jadwal dan syarat "
           "program akan kami jelaskan dalam pertemuan.",
           "Pelunasan tunggakan penting bagi pekerja: selama kepesertaan nonaktif, biaya pelayanan kesehatan pekerja "

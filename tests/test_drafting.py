@@ -88,6 +88,7 @@ def test_cicilan_letter_states_arrears_and_the_instalment_path():
     d = Dr.draft(ev, Dr.CICILAN, issued=ISSUED)
     assert d.text.splitlines()[0] == Dr.LABEL
     assert "program pembayaran bertahap" in d.text and "bukan surat teguran" in d.text
+    assert "Program REHAB (Rencana Pembayaran Bertahap)" in d.text
     assert f"terlambat pada {ev.ks_late_months} dari 12 bulan" in d.text
     assert Dr.rp(F.at[CICILAN_ID, "rp_arrears"] * 12) in d.text
     assert "P(pelanggaran)" not in d.text and "Peringkat" not in d.text

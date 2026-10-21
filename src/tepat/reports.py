@@ -13,7 +13,7 @@ import uuid
 
 import pandas as pd
 
-from tepat.cases import CaseStore, INSPECTORS, UNASSIGNED
+from tepat.cases import CaseStore, INSPECTORS, UNASSIGNED, _serialized, _transactional
 
 
 TYPES = {
@@ -100,25 +100,32 @@ class ReportStore:
     def __init__(self, cases: CaseStore):
         self.cases = cases
         self.conn = cases.conn
-        self.conn.executescript(_SCHEMA)
-        self.conn.commit()
+        self._lock = cases._lock
+        self._transaction = cases._transaction
+        with self._lock:
+            self.conn.executescript(_SCHEMA)
+            self.conn.commit()
 
+    @_serialized
     def get(self, branch: str, ticket: str) -> dict:
         row = self.conn.execute("SELECT * FROM reports WHERE branch = ? AND ticket = ?", (branch, ticket)).fetchone()
         if row is None:
             raise ReportError("Tiket tidak ditemukan di cabang ini.")
         return dict(row)
 
+    @_serialized
     def events(self, branch: str, ticket: str) -> pd.DataFrame:
         report = self.get(branch, ticket)
         return pd.read_sql_query(
             "SELECT at, actor, kind, detail FROM report_events WHERE report_id = ? ORDER BY event_id",
             self.conn, params=(report["report_id"],))
 
+    @_serialized
     def reports(self, branch: str) -> pd.DataFrame:
         return pd.read_sql_query("SELECT * FROM reports WHERE branch = ? ORDER BY report_id DESC",
                                  self.conn, params=(branch,))
 
+    @_serialized
     def count(self, branch: str, employer_id: str | None = None) -> int:
         query, params = "SELECT COUNT(*) FROM reports WHERE branch = ?", [branch]
         if employer_id is not None:
@@ -130,6 +137,7 @@ class ReportStore:
         self.conn.execute("INSERT INTO report_events (report_id, at, actor, kind, detail) VALUES (?, ?, ?, ?, ?)",
                           (report_id, at, actor, kind, detail))
 
+    @_transactional
     def submit(self, branch: str, reporter_hash: str, employer_id: str, report_type: str, *,
                source: str = "pekerja", at: str | None = None) -> Receipt:
         if branch not in {"A", "B", "C"}:
@@ -143,7 +151,7 @@ class ReportStore:
             raise ReportError("Repository hanya menerima hash pelapor, bukan NIK mentah.")
         at = _timestamp(at)
         ticket = "TPT-" + uuid.uuid4().hex[:16].upper()
-        with self.conn:
+        with self._transaction():
             cur = self.conn.execute(
                 "INSERT INTO reports (ticket, branch, reporter_hash, employer_id, report_type, created_at, "
                 "last_received_at, updated_at, reviewer, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
@@ -164,6 +172,7 @@ class ReportStore:
             self._event(cur.lastrowid, "Pekerja demo", "diterima", "Laporan dugaan diterima.", at)
         return Receipt(ticket, False)
 
+    @_transactional
     def review(self, branch: str, ticket: str, *, status: str | None = None, reviewer: str | None = None,
                note: str = "", actor: str = "Petugas", at: str | None = None) -> list[str]:
         note, actor = _safe_text(note), _safe_text(actor)
@@ -178,7 +187,7 @@ class ReportStore:
             raise ReportError("Pilih pemeriksa yang tersedia.")
         at = _timestamp(at)
         changes = []
-        with self.conn:
+        with self._transaction():
             for column, value, kind, detail in (
                 ("status", status, "status", f"Status: {report['status']} menjadi {status}"),
                 ("reviewer", reviewer, "pemeriksa", f"Ditugaskan kepada {reviewer}"),
@@ -194,6 +203,7 @@ class ReportStore:
                 changes.append("catatan")
         return changes
 
+    @_transactional
     def resolve(self, branch: str, ticket: str, *, disposition: str | None, note: str,
                 actor: str = "Petugas", at: str | None = None) -> None:
         note, actor = _safe_text(note), _safe_text(actor)
@@ -205,13 +215,14 @@ class ReportStore:
         if not note.strip():
             raise ReportError("Isi catatan penyelesaian laporan.")
         at = _timestamp(at)
-        with self.conn:
+        with self._transaction():
             self.conn.execute(
                 "UPDATE reports SET status = ?, resolution = ?, resolution_note = ?, resolved_at = ?, updated_at = ? "
                 "WHERE report_id = ?", (CLOSED, disposition, note.strip(), at, at, report["report_id"]))
             self._event(report["report_id"], actor, "selesai",
                         f"Disposisi: {DISPOSITIONS[disposition]}. Catatan: {note.strip()}", at)
 
+    @_transactional
     def link_case(self, branch: str, ticket: str, *, est_rp: float, p_violation: float, action: str,
                   actor: str = "Petugas", at: str | None = None) -> int:
         action, actor = _safe_text(action), _safe_text(actor)
@@ -221,13 +232,13 @@ class ReportStore:
         if report["status"] == CLOSED:
             raise ReportError("Laporan sudah selesai. Buka kembali sebelum menautkan kasus.")
         at = _timestamp(at)
-        with self.conn:
+        with self._transaction():
             existing = self.cases.get(branch, report["employer_id"])
             if existing:
                 cid = int(existing["case_id"])
             else:
                 cid = self.cases.open_case(branch, report["employer_id"], est_rp=est_rp, p_violation=p_violation,
-                                           action=action, actor=actor, source="laporan", at=at, _commit=False)
+                                           action=action, actor=actor, source="laporan", at=at)
                 assert cid is not None
             self.cases._event(cid, actor, "laporan ditautkan",
                               f"Tiket {ticket} ditautkan. Laporan masih dugaan; hasil kasus tidak diubah.", at)
@@ -238,6 +249,7 @@ class ReportStore:
                         f"Kasus {cid} ditautkan. Status dan hasil kasus tidak diubah.", at)
         return cid
 
+    @_transactional
     def reopen(self, branch: str, ticket: str, *, reason: str, actor: str = "Petugas",
                at: str | None = None) -> None:
         reason, actor = _safe_text(reason), _safe_text(actor)
@@ -248,7 +260,7 @@ class ReportStore:
             raise ReportError("Isi alasan membuka kembali laporan.")
         at = _timestamp(at)
         status = "Ditindaklanjuti" if report["case_id"] is not None else "Ditinjau"
-        with self.conn:
+        with self._transaction():
             self.conn.execute(
                 "UPDATE reports SET status = ?, resolution = NULL, resolution_note = NULL, resolved_at = NULL, "
                 "updated_at = ? WHERE report_id = ?", (status, at, report["report_id"]))

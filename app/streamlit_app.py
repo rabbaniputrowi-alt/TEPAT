@@ -40,6 +40,7 @@ from tepat import scorer  # noqa: E402
 if str(ROOT / "app") not in sys.path:  # drafting_panel.py sits next to this script
     sys.path.insert(0, str(ROOT / "app"))
 import drafting_panel  # noqa: E402
+import fairness_panel  # noqa: E402
 from tepat import drafting  # noqa: E402
 
 DATA = Path(os.environ.get("TEPAT_DATA", ROOT / "data"))
@@ -805,34 +806,7 @@ if view == "Benchmark":
 
 # 4. Fairness ----------------------------------------------------------------
 if view == "Keadilan & jalur acak":
-    rb = load_results()["branches"][branch]
-    arm = rb["rankings"].get(f"{rb.get('final_ranking', 'tepat_v2_1')}_with_random_arm", {})
-    with st.container(key="summary"):
-        a, b, c = st.columns(3)
-        a.metric("Anggaran jalur acak", "8%")
-        b.metric("Perusahaan sampel acak", f"{arm.get('random_arm_size', 0)}")
-        c.metric("Pelanggaran di sampel acak", f"{arm.get('random_arm_violation_rate', 0):.0%}")
-    st.info("Jalur acak berstrata menurut sektor dan skala memberi kesempatan pemeriksaan di luar daftar berisiko tinggi. "
-            "Sampel kecil ini membantu memantau bias seleksi; bukan angka prevalensi nasional.")
-    fr = pd.DataFrame(rb.get("fairness", []))
-    if len(fr):
-        for grp, title in (("sector", "Sektor"), ("band_obs", "Skala usaha")):
-            with st.container(border=True):
-                st.subheader(f"Pola pemeriksaan menurut {title.lower()}")
-                g = fr[fr.group == grp].copy().rename(columns={"value": "grp"})
-                if grp == "sector":
-                    g["grp"] = g.grp.map(SEKTOR)
-                m = g.melt(id_vars=["grp"], value_vars=["violation_rate", "pick_rate", "honest_flag_rate"], value_name="rate")
-                m["variable"] = m.variable.map({"violation_rate": "Pelanggaran sebenarnya", "pick_rate": "Dipilih TEPAT", "honest_flag_rate": "Jujur ikut terpilih"})
-                st.altair_chart(alt.Chart(m).mark_bar(cornerRadiusEnd=3).encode(
-                    x=alt.X("grp:N", title=None, axis=alt.Axis(labelAngle=-25, labelLimit=145)), xOffset="variable:N",
-                    y=alt.Y("rate:Q", axis=alt.Axis(format="%"), title=None),
-                    color=alt.Color("variable:N", scale=alt.Scale(domain=["Pelanggaran sebenarnya", "Dipilih TEPAT", "Jujur ikut terpilih"],
-                                                                range=["#98aeb5", "#087f82", "#d48b4a"]), legend=alt.Legend(orient="bottom", title=None)),
-                    tooltip=["grp", "variable", alt.Tooltip("rate:Q", format=".1%")]).properties(height=260).configure(**CHART_CONFIG),
-                    theme=None, width="stretch")
-    st.caption("Skala mikro & kecil: upah di bawah UMK bukan pelanggaran (Perpres 59/2024 Ps. 32(4), E05c). Aturan itu hanya berlaku "
-               "untuk usaha menengah & besar. Label pelanggaran sebenarnya hanya digunakan pada evaluasi sintetis ini.")
+    fairness_panel.render(branch, RESULTS / "fairness", load_results()["branches"][branch], SEKTOR, CHART_CONFIG)
 
 if view == "Cek kepesertaan saya":
     st.info("Untuk pekerja: apakah pemberi kerja sudah mendaftarkan dan membayar iuran BPJS Kesehatan Anda? "

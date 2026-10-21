@@ -15,8 +15,6 @@ TEPAT_DEMO=1 to force the slice. See scripts/make_demo_slice.py for what the sli
 from __future__ import annotations
 
 import base64
-import csv
-import hashlib
 import importlib.util
 import json
 import os
@@ -35,11 +33,13 @@ if importlib.util.find_spec("tepat") is None:  # Community Cloud installs requir
     sys.path.insert(0, str(ROOT / "src"))
 
 from tepat import cases as K  # noqa: E402
+from tepat import reports as P  # noqa: E402
 from tepat import rules as R  # noqa: E402
 from tepat import scorer  # noqa: E402
 if str(ROOT / "app") not in sys.path:  # drafting_panel.py sits next to this script
     sys.path.insert(0, str(ROOT / "app"))
 import drafting_panel  # noqa: E402
+import reports_panel  # noqa: E402
 from tepat import drafting  # noqa: E402
 
 DATA = Path(os.environ.get("TEPAT_DATA", ROOT / "data"))
@@ -47,7 +47,7 @@ RESULTS = Path(os.environ.get("TEPAT_RESULTS", ROOT / "results"))
 DEMO = ROOT / "demo"
 TIPS = RESULTS / "tips.csv"
 CASES_FILE = RESULTS / "cases.sqlite"
-SUMBER_KASUS = {"contoh": "Contoh demo", "petugas": "Petugas", "massal": "Mulai massal"}
+SUMBER_KASUS = {"contoh": "Contoh demo", "petugas": "Petugas", "massal": "Mulai massal", "laporan": "Laporan pekerja"}
 BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 SEKTOR = {"C": "Manufaktur", "F": "Konstruksi", "G": "Perdagangan", "H": "Logistik", "I": "Akomodasi & Makan",
           "J": "Informasi & Kom.", "K": "Keuangan", "Q": "Kesehatan", "A": "Pertanian"}
@@ -163,25 +163,6 @@ def load_unreg(ranked_path: str, truth_path: str) -> tuple[pd.DataFrame, pd.Data
     return U, T
 
 
-def read_tips() -> pd.DataFrame:
-    if TIPS.exists():
-        return pd.read_csv(TIPS)
-    return pd.DataFrame(columns=["waktu", "tiket", "nik_hash", "employer_id", "jenis"])
-
-
-def add_tip(nik: str, employer_id: str, jenis: str) -> str:
-    TIPS.parent.mkdir(parents=True, exist_ok=True)
-    tiket = "TPT-" + hashlib.sha1(f"{nik}{employer_id}{jenis}{datetime.now()}".encode()).hexdigest()[:6].upper()
-    new = not TIPS.exists()
-    with open(TIPS, "a", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        if new:
-            w.writerow(["waktu", "tiket", "nik_hash", "employer_id", "jenis"])
-        w.writerow([datetime.now().isoformat(timespec="seconds"), tiket,
-                    hashlib.sha256(nik.encode()).hexdigest()[:12], employer_id, jenis])
-    return tiket
-
-
 def open_case(employer_id: str) -> None:
     """Preserve the selected queue case when opening the inspector view."""
     st.session_state["view"] = "Kasus perusahaan"
@@ -214,6 +195,20 @@ def case_store(demo_mode: bool) -> K.CaseStore:
     if "case_store" not in st.session_state:
         st.session_state["case_store"] = K.CaseStore.sandbox()
     return st.session_state["case_store"]
+
+
+@st.cache_resource
+def persistent_reports(path: str) -> P.ReportStore:
+    return P.ReportStore(persistent_store(path))
+
+
+def report_store(cases: K.CaseStore) -> P.ReportStore:
+    if cases.mode == "persistent":
+        reports = persistent_reports(str(cases.path))
+        st.session_state["report_store"] = reports
+    elif "report_store" not in st.session_state or st.session_state["report_store"].cases is not cases:
+        st.session_state["report_store"] = P.ReportStore(cases)
+    return st.session_state["report_store"]
 
 
 def flash(message: str) -> None:
@@ -312,12 +307,13 @@ ASSETS = ROOT / "app" / "assets"
 font_data = base64.b64encode((ASSETS / "public-sans-latin.woff2").read_bytes()).decode("ascii")
 css = (ASSETS / "workspace.css").read_text(encoding="utf-8").replace("__PUBLIC_SANS__", font_data)
 st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
-VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Tindak lanjut", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
+VIEWS = ["Daftar prioritas", "Kasus perusahaan", "Tindak lanjut", "Laporan pekerja", "Usaha belum terdaftar", "Benchmark", "Keadilan & jalur acak",
          "Cek kepesertaan saya"]
 DESCRIPTIONS = {
     "Daftar prioritas": "Tentukan kapasitas pemeriksaan. Dahulukan potensi pemulihan per jam tertinggi.",
     "Kasus perusahaan": "Telusuri sinyal, dasar hukum, dan dokumen sebelum mengambil keputusan.",
     "Tindak lanjut": "Pantau kasus yang sedang ditangani, jadwal berikutnya, dan hasil pemeriksaan.",
+    "Laporan pekerja": "Tinjau dugaan pekerja, catat penelaahan, dan tautkan ke tindak lanjut bila diperlukan.",
     "Usaha belum terdaftar": "Usaha yang wajib mendaftar ke BPJS Kesehatan tetapi belum ada di registri. Daftar terpisah dari antrean utama.",
     "Benchmark": "Bandingkan metode dengan anggaran jam yang sama. Semua hasil berasal dari simulasi sintetis.",
     "Keadilan & jalur acak": "Pantau siapa yang terpilih dan siapa yang terlewat. Jangan hanya belajar dari kasus berisiko tinggi.",
@@ -348,6 +344,9 @@ except FileNotFoundError:
 store = case_store(demo_mode)
 if store.mode == "sandbox":
     K.seed_examples(store, branch, ranked, load_truth(str(branch_dir)))
+reports = report_store(store)
+if store.mode == "sandbox":
+    P.seed_examples(reports, branch, ranked)
 lookback = 12
 D = R.SCORING_DAY
 st.sidebar.markdown(f'<div class="sidebar-context"><b>{ribu(len(reg))}</b> perusahaan sintetis<br>'
@@ -434,7 +433,6 @@ if view == "Daftar prioritas":
 
 # 2. Case --------------------------------------------------------------------
 if view == "Kasus perusahaan":
-    tips = read_tips()
     order = list(ranked.index)
     eid = st.selectbox("Pilih perusahaan", order, index=0, key="case_employer",
                        format_func=lambda e: f"{reg.at[e, 'name']} (peringkat {int(ranked.at[e, 'rank'])})")
@@ -449,9 +447,9 @@ if view == "Kasus perusahaan":
         d.metric("Waktu pemeriksaan", f"{int(f_.hours)} jam")
     with st.container(key="recommended"):
         st.info(f"**Tindakan yang disarankan:** {r.action}" + (f"  \n**Catatan pembayaran:** {r.pay_label}" if r.pay_label else ""))
-    n_tip = int((tips.employer_id == eid).sum()) if len(tips) else 0
-    if n_tip:
-        st.warning(f"{n_tip} laporan demo pekerja masuk melalui Cek Kepesertaan Saya untuk perusahaan ini.")
+    n_tip = reports.count(branch, eid)
+    st.caption(f"{n_tip} tiket laporan pekerja di cabang ini untuk perusahaan ini. Laporan masih dugaan dan tidak mengubah peringkat.")
+    st.button("Lihat laporan pekerja", key="case_reports", on_click=reports_panel.open_inbox, args=(branch, eid))
     follow_up_panel(store, branch, eid, r)
     left, right = st.columns([3, 2], gap="large")
     with left:
@@ -590,6 +588,10 @@ if view == "Tindak lanjut":
         st.download_button("Unduh label hasil (CSV)", labels.to_csv(index=False).encode("utf-8"),
                            file_name=f"tepat_label_hasil_{branch}.csv", mime="text/csv", key="fu_export",
                            disabled=labels.empty)
+
+# Worker allegations inbox ----------------------------------------------------
+if view == "Laporan pekerja":
+    reports_panel.render(reports, branch, ranked, reg, open_case=open_case, waktu=waktu, legacy_path=TIPS)
 
 # 2b. Second list: businesses missing from the BPJS Kesehatan registry ------------------
 if view == "Usaha belum terdaftar":
@@ -837,6 +839,11 @@ if view == "Keadilan & jalur acak":
 if view == "Cek kepesertaan saya":
     st.info("Untuk pekerja: apakah pemberi kerja sudah mendaftarkan dan membayar iuran BPJS Kesehatan Anda? "
                "Di dunia nyata fitur ini berada di Mobile JKN; di sini memakai data sintetis.")
+    reports_panel.limits(reports)
+    if msg := st.session_state.pop(f"worker_report_flash_{branch}", None):
+        st.success(msg)
+    if problem := st.session_state.pop(f"worker_report_error_{branch}", None):
+        st.error(problem)
     if demo_mode:
         n_detail = demo_worker_employers(branch)
         st.caption(f"Versi daring ini memuat data pekerja dari {n_detail} perusahaan contoh, bukan {ribu(len(reg))}. "
@@ -867,7 +874,7 @@ if view == "Cek kepesertaan saya":
 
     demos = demo_niks(str(branch_dir))
     pick = st.radio("Contoh NIK sintetis", list(demos), horizontal=False, key="worker_scenario")
-    nik = st.text_input("NIK (16 digit)", value=demos.get(pick, ""), max_chars=16)
+    nik = st.text_input("NIK (16 digit)", value=demos.get(pick, ""), max_chars=16, key=f"worker_nik_{branch}_{pick}")
     if nik:
         my_ks = ks[ks.nik == nik].sort_values("ppu_start")
         my_tk = tk[(tk.nik == nik) & (tk.quarter == tk[tk.nik == nik].quarter.max())] if (tk.nik == nik).any() else tk.iloc[0:0]
@@ -913,14 +920,22 @@ if view == "Cek kepesertaan saya":
             st.success("Semua beres: Anda terdaftar dan iuran 3 bulan terakhir sudah dibayar.")
         for i, (emp, jenis, text) in enumerate(alerts):
             st.error(text)
-            if st.button("Kirim laporan demo", key=f"lapor_{nik}_{i}", type="primary"):
-                tiket = add_tip(nik, emp, jenis)
-                st.success(f"Laporan demo tersimpan. Nomor tiket **{tiket}**. NIK mentah tidak disimpan dalam tiket; hanya hash. "
-                           "Laporan muncul di halaman kasus perusahaan untuk demo petugas. Tidak dikirim ke BPJS.")
+            if st.button("Kirim laporan demo", key=f"lapor_{branch}_{emp}_{jenis}_{i}", type="primary"):
+                try:
+                    receipt = reports.submit(branch, P.hash_reporter(nik), emp, jenis)
+                except P.ReportError as e:
+                    st.session_state[f"worker_report_error_{branch}"] = str(e)
+                else:
+                    acknowledgement = ("Pengiriman duplikat dicatat pada tiket yang sama" if receipt.duplicate
+                                       else "Laporan demo baru dicatat")
+                    st.session_state[f"worker_report_flash_{branch}"] = (
+                        f"{acknowledgement}. Nomor tiket **{receipt.ticket}**. "
+                        "Dapat ditinjau di halaman Laporan pekerja. Tidak membuat kasus atau mengubah peringkat secara otomatis.")
+                st.rerun()
         if len(my_ks) == 0 and len(my_tk) == 0 and len(my_dep) == 0:
             st.info("NIK tidak ditemukan" + (" dalam data pekerja versi daring" if demo_mode else "")
                     + ". Pilih skenario demo untuk mencoba data yang tersedia.")
-    st.caption("Dalam proposal: notifikasi proaktif lewat Mobile JKN dan alur triase laporan (slide), bukan bagian prototipe.")
+    st.caption("Triase laporan tersedia di halaman Laporan pekerja. Notifikasi proaktif lewat Mobile JKN masih berupa rancangan; tidak ada pengiriman dari prototipe.")
 
 st.markdown('<footer class="app-footer"><span>TEPAT / Tim Johannes Kepler / Healthkathon 2026</span>'
             '<span>Data sintetis. Keputusan pemeriksaan tetap pada petugas.</span></footer>', unsafe_allow_html=True)

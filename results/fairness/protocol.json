@@ -1,0 +1,48 @@
+{
+  "protocol_version": 1,
+  "expected_seeds": [
+    20261007,
+    20261101,
+    20261102,
+    20261103,
+    20261104
+  ],
+  "completed_seeds": [
+    20261007,
+    20261101,
+    20261102,
+    20261103,
+    20261104
+  ],
+  "missing_seeds": [],
+  "complete": true,
+  "group_coverage_complete": true,
+  "missing_group_rows": [],
+  "branch_roles": {
+    "A": "tuning_only",
+    "B": "held_out",
+    "C": "shifted"
+  },
+  "ranking": "tepat_v2_1",
+  "random_arm_in_group_tables": false,
+  "synthetic_only": true,
+  "fictional_geography": true,
+  "small_n_threshold": 30,
+  "group_rows": 240,
+  "summary_rows": 48,
+  "headline_rows": 105,
+  "reproduction_checks": 1260,
+  "reproduction_passed": 1260,
+  "reproduction_tolerance": {
+    "rtol": 1e-10,
+    "atol": 1e-12
+  },
+  "denominators": {
+    "pick_rate": "n_selected / n_total",
+    "violation_rate": "n_violators / n_total",
+    "honest_flag_rate": "n_honest_selected / n_honest"
+  },
+  "aggregation": "Unweighted mean/min/max of defined per-seed rates; not confidence intervals. Counts use sum/min/max, not means. Pooled rates are ratios of count sums over present seed populations, not unique employers.",
+  "missing": "Missing seed/group rows do not become zero. Zero denominators are null. Per-rate seed coverage and undefined counts are explicit.",
+  "stability": "Group rate variation across regenerated populations, not entity rank stability; identifiers are reused, not stable entities."
+}

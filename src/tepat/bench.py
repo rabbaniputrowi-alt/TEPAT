@@ -77,16 +77,56 @@ def topk(order: list[str], T: pd.DataFrame, fracs=(0.05, 0.10, 0.20)) -> dict:
     return {f"top{int(f * 100)}_precision": float(T.loc[order[: max(1, int(n * f))], "is_violator"].mean()) for f in fracs}
 
 
-def fairness(picked: list[str], F: pd.DataFrame, T: pd.DataFrame) -> pd.DataFrame:
-    df = F[["sector", "band_obs"]].join(T[["is_violator"]])
+def fairness(picked: list[str], F: pd.DataFrame, T: pd.DataFrame, *,
+             registry: pd.DataFrame | None = None,
+             group_values: dict[str, list[str]] | None = None, min_group_n: int = 30) -> pd.DataFrame:
+    """Group diagnostics; rates always carry their population denominators."""
+    for name, frame in (("features", F), ("truth", T)):
+        if not frame.index.is_unique or frame.index.hasnans:
+            raise ValueError(f"{name} employer keys must be unique and non-null")
+    if len(F) != len(T) or not F.index.isin(T.index).all():
+        raise ValueError("features and truth must have exactly the same employer keys")
+    selected = pd.Index(picked)
+    if not selected.is_unique or selected.hasnans or not selected.isin(F.index).all():
+        raise ValueError("selected employer keys must be unique, non-null and present in features")
+    if not pd.api.types.is_bool_dtype(T.is_violator) or T.is_violator.isna().any():
+        raise ValueError("is_violator must contain complete boolean labels")
+    groups = ["sector", "band_obs", "kabkota"]
+    df = F[["sector", "band_obs"]].copy()
+    if registry is not None:
+        if (not registry.index.is_unique or registry.index.hasnans or len(registry) != len(F)
+                or not F.index.isin(registry.index).all()):
+            raise ValueError("registry must have exactly the same unique employer keys as features")
+    df["kabkota"] = F["kabkota"] if "kabkota" in F else registry["kabkota"] if registry is not None else None
+    df = df.join(T[["is_violator"]], validate="one_to_one")
     df["picked"] = df.index.isin(picked)
     rows = []
-    for col in ("sector", "band_obs"):
-        g = df.groupby(col)
-        rows.append(pd.DataFrame({"group": col, "value": g.size().index, "n": g.size().values,
-                                  "violation_rate": g.is_violator.mean().values, "pick_rate": g.picked.mean().values,
-                                  "honest_flag_rate": g.apply(lambda x: (x.picked & ~x.is_violator).sum() / max(1, (~x.is_violator).sum())).values}))
-    return pd.concat(rows, ignore_index=True)
+    for col in groups:
+        categorical = list(df[col].cat.categories) if isinstance(df[col].dtype, pd.CategoricalDtype) else []
+        labels = df[col].astype(object).where(df[col].notna() & df[col].astype(str).str.strip().ne(""), "__missing__")
+        values = list(dict.fromkeys((group_values or {}).get(col, []) + categorical + list(labels.unique())))
+        for value in sorted(values):
+            part = df[labels == value]
+            n_total = len(part)
+            n_honest = int((~part.is_violator).sum())
+            n_selected = int(part.picked.sum())
+            n_violators = int(part.is_violator.sum())
+            n_honest_selected = int((part.picked & ~part.is_violator).sum())
+            rows.append(dict(group=col, value=value, n=n_total, n_total=n_total,
+                             n_selected=n_selected, n_violators=n_violators, n_honest=n_honest,
+                             n_honest_selected=n_honest_selected,
+                             violation_rate=n_violators / n_total if n_total else None,
+                             pick_rate=n_selected / n_total if n_total else None,
+                             honest_flag_rate=n_honest_selected / n_honest if n_honest else None,
+                             small_n=n_total < min_group_n or n_honest < min_group_n,
+                             warning=";".join(x for x, yes in [("empty_group", n_total == 0),
+                                                               ("missing_label", value == "__missing__"),
+                                                               ("no_honest", n_honest == 0),
+                                                               ("small_n_total", n_total < min_group_n),
+                                                               ("small_n_honest", n_honest < min_group_n)] if yes)))
+    columns = ["group", "value", "n", "n_total", "n_selected", "n_violators", "n_honest", "n_honest_selected",
+               "violation_rate", "pick_rate", "honest_flag_rate", "small_n", "warning"]
+    return pd.DataFrame(rows, columns=columns)
 
 
 def run(F: pd.DataFrame, T: pd.DataFrame, rankings: dict[str, pd.DataFrame], cfg: dict, seed: int,

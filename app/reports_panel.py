@@ -92,7 +92,7 @@ def render(store: P.ReportStore, branch: str, ranked: pd.DataFrame, reg: pd.Data
         st.session_state[ticket_key] = tickets[0]
     ticket = st.selectbox("Pilih tiket", tickets, key=ticket_key)
     report = store.get(branch, ticket)
-    with st.container(border=True):
+    with st.container(border=True, key="glass_rp_1"):
         st.subheader(ticket)
         st.write(f"Jenis: {P.TYPES[report['report_type']]}. Status: {report['status']}. Pemeriksa: {report['reviewer']}.")
         st.caption(f"Diterima {waktu(report['created_at'])}. Terakhir masuk {waktu(report['last_received_at'])}. "
@@ -121,7 +121,7 @@ def render(store: P.ReportStore, branch: str, ranked: pd.DataFrame, reg: pd.Data
             if st.form_submit_button("Simpan penelaahan"):
                 perform(branch, ticket, lambda: store.review(branch, ticket, status=status, reviewer=reviewer, note=note),
                         "Penelaahan tersimpan. Status kasus tidak diubah.")
-    with st.container(border=True):
+    with st.container(border=True, key="glass_rp_2"):
         st.subheader("Tindak lanjut perusahaan")
         case = store.cases.get(branch, report["employer_id"])
         if report["case_id"] is not None:

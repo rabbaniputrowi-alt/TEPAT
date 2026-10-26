@@ -21,7 +21,7 @@ def kali(x: float) -> str:
 def open_view(monkeypatch, branch: str, view: str) -> AppTest:
     monkeypatch.setenv("TEPAT_DEMO", "1")
     app = AppTest.from_file(str(APP), default_timeout=120).run()
-    app.sidebar.selectbox(key="branch").set_value(branch).run()
+    app.selectbox(key="branch").set_value(branch).run()
     app.sidebar.radio(key="view").set_value(view).run()
     assert not app.exception
     return app

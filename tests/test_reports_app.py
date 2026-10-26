@@ -34,7 +34,7 @@ def test_worker_report_is_branch_scoped_duplicate_acknowledged_and_legacy_csv_un
     legacy.write_bytes(old)
     at = app()
     assert not at.exception
-    assert "Laporan pekerja" in at.sidebar.radio(key="view").options, "Inspectors need a real report inbox."
+    assert any(o.endswith(": Laporan pekerja") for o in at.sidebar.radio(key="view").options), "Inspectors need a real report inbox."
     cases = at.session_state["case_store"]
     reports = at.session_state["report_store"]
     before, case_count = reports.count("B"), cases.count("B")
@@ -69,7 +69,7 @@ def test_worker_report_is_branch_scoped_duplicate_acknowledged_and_legacy_csv_un
     assert set(at.dataframe[0].value.Perusahaan) == {pd.read_parquet(
         ROOT / "demo" / "B" / "observed" / "employer_registry.parquet").set_index("employer_id").at[employer, "name"]}
 
-    at.sidebar.selectbox(key="branch").set_value("C").run()
+    at.selectbox(key="branch").set_value("C").run()
     assert not at.exception
     assert ticket not in set(at.dataframe[0].value.Tiket)
     assert reports.count("C") == 4
@@ -194,7 +194,7 @@ def test_inbox_filters_do_not_change_branch_totals_or_leak_sessions(monkeypatch)
     widget(first, "multiselect", "Pemeriksa laporan").set_value(["Pemeriksa D"]).run()
     assert first.dataframe[0].value.empty and not first.exception
     assert first.metric[0].value == "4"
-    first.sidebar.selectbox(key="branch").set_value("C").run()
+    first.selectbox(key="branch").set_value("C").run()
     assert len(first.dataframe[0].value) == 4 and first.metric[0].value == "4"
     assert not first.exception
 

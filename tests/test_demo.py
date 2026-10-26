@@ -49,7 +49,7 @@ def test_cloud_requirements_match_the_lockfile():
 def test_each_view_renders_on_the_demo_slice(monkeypatch, branch, view):
     monkeypatch.setenv("TEPAT_DEMO", "1")
     app = AppTest.from_file(str(APP), default_timeout=120).run()
-    app.sidebar.selectbox(key="branch").set_value(branch).run()
+    app.selectbox(key="branch").set_value(branch).run()
     app.sidebar.radio(key="view").set_value(view).run()
     assert not app.exception
     assert app.title[0].value == view
@@ -60,7 +60,7 @@ def test_every_worker_scenario_resolves_on_the_demo_slice(monkeypatch, branch):
     """The slice offers the same worker scenarios as the full run (recorded by the builder)."""
     monkeypatch.setenv("TEPAT_DEMO", "1")
     app = AppTest.from_file(str(APP), default_timeout=120).run()
-    app.sidebar.selectbox(key="branch").set_value(branch).run()
+    app.selectbox(key="branch").set_value(branch).run()
     app.sidebar.radio(key="view").set_value("Cek kepesertaan saya").run()
     scenarios = app.radio(key="worker_scenario").options
     assert set(scenarios) == set(MANIFEST["branches"][branch]["worker_scenarios"]), scenarios

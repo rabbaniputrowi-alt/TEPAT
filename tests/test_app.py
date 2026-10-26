@@ -14,7 +14,9 @@ def test_sidebar_navigation_opens_case_view():
     app = AppTest.from_file(str(APP), default_timeout=120).run()
     assert not app.exception
     assert "view" in [radio.key for radio in app.sidebar.radio], "The workspace needs a persistent sidebar navigation."
-    assert app.sidebar.radio(key="view").options == VIEWS
+    shown = app.sidebar.radio(key="view").options  # AppTest reports the formatted label, ":material/<icon>: <view>"
+    assert [o.split(": ", 1)[-1] for o in shown] == VIEWS
+    assert all(o.startswith(":material/") for o in shown), "Every rail entry carries an icon."
     app.sidebar.radio(key="view").set_value("Kasus perusahaan").run()
     assert not app.exception
     assert "case_employer" in [box.key for box in app.selectbox]
@@ -49,6 +51,7 @@ def test_interface_text_avoids_typographic_tells():
     """Em dashes, middle dots and ellipsis glyphs read as generated copy, not product writing."""
     sources = {
         "app": APP.read_text(encoding="utf-8"),
+        "queue_panel": (APP.parent / "queue_panel.py").read_text(encoding="utf-8"),
         "css": (APP.parent / "assets" / "workspace.css").read_text(encoding="utf-8"),
         "reports_panel": (APP.parent / "reports_panel.py").read_text(encoding="utf-8"),
         "reports_store": (APP.parent.parent / "src" / "tepat" / "reports.py").read_text(encoding="utf-8"),
@@ -73,7 +76,7 @@ def test_workspace_opens_on_the_task_not_on_decoration():
 def test_each_view_renders_on_every_synthetic_branch(branch, view):
     # Cold branches load their parquet slices on first use, so allow for real I/O.
     app = AppTest.from_file(str(APP), default_timeout=120).run()
-    app.sidebar.selectbox(key="branch").set_value(branch).run()
+    app.selectbox(key="branch").set_value(branch).run()
     app.sidebar.radio(key="view").set_value(view).run()
     assert not app.exception
     assert app.title[0].value == view

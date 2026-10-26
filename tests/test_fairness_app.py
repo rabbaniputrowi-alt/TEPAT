@@ -17,7 +17,7 @@ VIEW = "Keadilan & jalur acak"
 def test_fairness_view_default_region_denominators_match_demo(monkeypatch, branch):
     monkeypatch.setenv("TEPAT_DEMO", "1")
     app = AppTest.from_file(str(APP), default_timeout=120).run()
-    app.sidebar.selectbox(key="branch").set_value(branch).run()
+    app.selectbox(key="branch").set_value(branch).run()
     app.sidebar.radio(key="view").set_value(VIEW).run()
     assert not app.exception
     assert len(app.get("vega_lite_chart")) == 1, "Preserve a denominator-aware chart alongside the data-first table"
@@ -48,7 +48,7 @@ def test_fairness_view_cross_seed_coverage_matches_real_raw_runs(monkeypatch, br
 
     monkeypatch.setenv("TEPAT_DEMO", "1")
     app = AppTest.from_file(str(APP), default_timeout=120).run()
-    app.sidebar.selectbox(key="branch").set_value(branch).run()
+    app.selectbox(key="branch").set_value(branch).run()
     app.sidebar.radio(key="view").set_value(VIEW).run()
     assert not app.exception
     tables = [table.value for table in app.dataframe if "pick_rate_n_seeds" in table.value.columns]

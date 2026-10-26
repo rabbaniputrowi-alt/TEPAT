@@ -43,11 +43,12 @@ with sync_playwright() as p:
         assert page.locator('[data-testid="stException"]').count() == 0
 
     for n, view in enumerate(VIEWS):
-        page.locator('[data-testid="stSidebar"]').get_by_text(view, exact=True).click()
+        page.locator('[data-testid="stSidebar"]').locator('[data-testid="stRadioOption"]').filter(has_text=view).click()
         settle(view)
         if view == "Daftar prioritas":
             page.get_by_role("button", name="Buka kasus", exact=True).wait_for()
-            page.locator('[data-testid="stDataFrame"] canvas').first.wait_for()
+            page.locator('[class*="st-key-qcard_"]').first.wait_for()  # review cards replace the always-open table
+            page.wait_for_function("document.querySelectorAll('.st-key-curve_card canvas, .st-key-curve_card svg').length > 0", timeout=30000)
         if view in ("Kasus perusahaan", "Benchmark", "Keadilan & jalur acak"):
             page.locator('[data-testid="stVegaLiteChart"]').first.wait_for(timeout=30000)
             page.wait_for_function("document.querySelectorAll('[data-testid=stVegaLiteChart] canvas, [data-testid=stVegaLiteChart] svg').length > 0", timeout=30000)
@@ -68,7 +69,7 @@ with sync_playwright() as p:
 
     # Exercise the real queue-to-case path.
     sidebar = page.locator('[data-testid="stSidebar"]')
-    sidebar.get_by_text("Daftar prioritas", exact=True).click()
+    sidebar.locator('[data-testid="stRadioOption"]').filter(has_text="Daftar prioritas").click()
     settle("Daftar prioritas")
     name = page.locator('.case-preview-name').inner_text()
     page.get_by_role("button", name="Buka kasus", exact=True).click()
@@ -90,7 +91,7 @@ with sync_playwright() as p:
     toggle = page.get_by_test_id("stExpandSidebarButton")
     assert toggle.is_visible(), "Mobile users need a visible navigation control."
     toggle.click()
-    sidebar.get_by_text("Cek kepesertaan saya", exact=True).click()
+    sidebar.locator('[data-testid="stRadioOption"]').filter(has_text="Cek kepesertaan saya").click()
     settle("Cek kepesertaan saya")
     collapse = sidebar.locator('[data-testid="stSidebarCollapseButton"] button')
     if collapse.count() and collapse.is_visible():

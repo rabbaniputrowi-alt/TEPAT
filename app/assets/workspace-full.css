@@ -66,7 +66,7 @@
 [data-testid='stSidebar'] [role='radiogroup'] label::after {
   position: absolute;
   top: 50%;
-  left: calc(100% + 14px);
+  left: calc(100% + 75px);
   transform: translateY(-50%);
   background: #0b2a2e;
   color: #fff;
@@ -81,8 +81,7 @@
   z-index: 100;
   transition: opacity 120ms ease;
 }
-[data-testid='stSidebar'] [role='radiogroup'] label:hover::after,
-[data-testid='stSidebar'] [role='radiogroup'] label:has(input:focus-visible)::after { opacity: 1; }
+[data-testid='stSidebar'] [role='radiogroup'] label:hover::after { opacity: 1; }
 [data-testid='stSidebar'] [role='radiogroup'] > div:nth-child(1) label::after { content: 'Daftar prioritas'; }
 [data-testid='stSidebar'] [role='radiogroup'] > div:nth-child(2) label::after { content: 'Kasus perusahaan'; }
 [data-testid='stSidebar'] [role='radiogroup'] > div:nth-child(3) label::after { content: 'Tindak lanjut'; }
@@ -97,7 +96,7 @@
 [data-testid='stSidebar'] [data-testid='stSidebarCollapseButton'] button { width: 32px; height: 32px; }
 
 /* The title and controls share a tight header rather than a separate toolbar. */
-[data-testid='stMainBlockContainer'] { max-width: 1720px; padding: 1.35rem 1.35rem 2rem 1.15rem; }
+[data-testid='stMainBlockContainer'] { max-width: 1720px; padding: 1.35rem 1.35rem 2rem 1.75rem; }
 .st-key-page_head { margin-bottom: 0; }
 .st-key-page_head h1 { font-size: 2.25rem !important; line-height: 1.12 !important; }
 .st-key-page_head [data-testid='stCaptionContainer'] p { font-size: .88rem; line-height: 1.45; }

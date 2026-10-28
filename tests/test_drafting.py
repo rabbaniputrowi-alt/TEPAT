@@ -300,8 +300,7 @@ def test_docx_round_trip_keeps_heading_and_reasons():
 # --------------------------------------------------------------------------- app
 
 def test_panel_sits_before_the_answer_key_in_the_case_view():
-    src = APP.read_text(encoding="utf-8")
-    case = src[src.index('if view == "Kasus perusahaan":'):src.index('if view == "Usaha belum terdaftar":')]
+    case = (APP.parent / "case_panel.py").read_text(encoding="utf-8")
     assert case.index("drafting_panel.render(") < case.index("Kunci jawaban")
     assert "def on_draft_approved(employer_id: str, doc_type: str, text: str)" in case
     assert "store.record_draft_approval(" in case  # approvals go into the case history

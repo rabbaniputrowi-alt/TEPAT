@@ -52,7 +52,9 @@ def test_each_view_renders_on_the_demo_slice(monkeypatch, branch, view):
     app.selectbox(key="branch").set_value(branch).run()
     app.sidebar.radio(key="view").set_value(view).run()
     assert not app.exception
-    assert app.title[0].value == view
+    assert app.title[0].value == (pd.read_parquet(DEMO / branch / "observed" / "employer_registry.parquet")
+                                  .set_index("employer_id").at[app.selectbox(key="case_employer").value, "name"]
+                                  if view == "Kasus perusahaan" else view)
 
 
 @pytest.mark.parametrize("branch", ["B", "C", "A"])

@@ -35,7 +35,11 @@ with sync_playwright() as p:
 
     def settle(title: str):
         # A full rerun takes 15-21 s on this laptop on battery; 30 s left too little margin after a reload.
-        page.get_by_role("heading", name=title, exact=True).wait_for(timeout=90000)
+        # Kasus perusahaan shows the selected firm's name as its heading, not the view name itself.
+        if title == "Kasus perusahaan":
+            page.locator('[data-testid="stCaptionContainer"]', has_text="Kasus perusahaan /").first.wait_for(timeout=90000)
+        else:
+            page.get_by_role("heading", name=title, exact=True).wait_for(timeout=90000)
         page.wait_for_function("document.querySelectorAll('[data-testid=stSkeleton]').length === 0", timeout=90000)
         page.locator('[data-testid="stApp"][data-test-script-state="notRunning"]').wait_for(timeout=90000)
         page.evaluate("document.fonts.ready")
@@ -50,6 +54,12 @@ with sync_playwright() as p:
             page.locator('[class*="st-key-qcard_"]').first.wait_for()  # review cards replace the always-open table
             page.wait_for_function("document.querySelectorAll('.st-key-curve_card canvas, .st-key-curve_card svg').length > 0", timeout=30000)
         if view in ("Kasus perusahaan", "Benchmark", "Keadilan & jalur acak"):
+            # Vega-Lite embeds client-side after the script settles; poll rather than one long wait,
+            # since a single slow paint should not fail the whole capture run.
+            for attempt in range(6):
+                if page.locator('[data-testid="stVegaLiteChart"]').count() > 0:
+                    break
+                page.wait_for_timeout(2000)
             page.locator('[data-testid="stVegaLiteChart"]').first.wait_for(timeout=30000)
             page.wait_for_function("document.querySelectorAll('[data-testid=stVegaLiteChart] canvas, [data-testid=stVegaLiteChart] svg').length > 0", timeout=30000)
         page.locator('[data-testid="stMain"]').evaluate("e => e.scrollTop = 0")

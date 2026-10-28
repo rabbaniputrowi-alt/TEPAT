@@ -2,6 +2,7 @@
 from pathlib import Path
 
 import pytest
+import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 APP = Path(__file__).resolve().parents[1] / "app" / "streamlit_app.py"
@@ -53,6 +54,11 @@ def test_interface_text_avoids_typographic_tells():
         "app": APP.read_text(encoding="utf-8"),
         "queue_panel": (APP.parent / "queue_panel.py").read_text(encoding="utf-8"),
         "css": (APP.parent / "assets" / "workspace.css").read_text(encoding="utf-8"),
+        "css_full": (APP.parent / "assets" / "workspace-full.css").read_text(encoding="utf-8"),
+        "workspace_ui": (APP.parent / "workspace_ui.py").read_text(encoding="utf-8"),
+        "case_panel": (APP.parent / "case_panel.py").read_text(encoding="utf-8"),
+        "unregistered_panel": (APP.parent / "unregistered_panel.py").read_text(encoding="utf-8"),
+        "fairness_panel": (APP.parent / "fairness_panel.py").read_text(encoding="utf-8"),
         "reports_panel": (APP.parent / "reports_panel.py").read_text(encoding="utf-8"),
         "reports_store": (APP.parent.parent / "src" / "tepat" / "reports.py").read_text(encoding="utf-8"),
     }
@@ -79,5 +85,7 @@ def test_each_view_renders_on_every_synthetic_branch(branch, view):
     app.selectbox(key="branch").set_value(branch).run()
     app.sidebar.radio(key="view").set_value(view).run()
     assert not app.exception
-    assert app.title[0].value == view
+    assert app.title[0].value == (pd.read_parquet(APP.parent.parent / "demo" / branch / "observed" / "employer_registry.parquet")
+                                  .set_index("employer_id").at[app.selectbox(key="case_employer").value, "name"]
+                                  if view == "Kasus perusahaan" else view)
     assert any("Data sintetis" in element.value for element in app.markdown)

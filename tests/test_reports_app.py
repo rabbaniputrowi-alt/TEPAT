@@ -26,6 +26,39 @@ def text(at):
                      for e in at.get(kind))
 
 
+def test_workspace_inbox_cards_select_real_ticket_without_changing_report(monkeypatch):
+    monkeypatch.setenv("TEPAT_DEMO", "1")
+    at = app()
+    reports = at.session_state["report_store"]
+    at.sidebar.radio(key="view").set_value("Laporan pekerja").run()
+    rows = reports.reports("B")
+    assert at.metric[0].value == str(len(rows))
+    assert at.metric[1].value == str((rows.status == "Baru").sum())
+    assert at.metric[2].value == str((rows.status == "Ditinjau").sum())
+    assert at.metric[3].value == str(rows.case_id.notna().sum())
+    assert set(at.dataframe[0].value.Tiket) == set(rows.ticket)
+    ticket = rows.iloc[-1].ticket
+    assert any(b.label == f"Pilih {ticket}" for b in at.button)
+    click(at, f"Pilih {ticket}")
+    assert at.selectbox(key="reports_ticket_B").value == ticket
+    assert ticket in text(at)
+    assert reports.get("B", ticket)["ticket"] == ticket
+
+
+def test_workspace_review_shortcut_records_real_status_event(monkeypatch):
+    monkeypatch.setenv("TEPAT_DEMO", "1")
+    at = app()
+    reports = at.session_state["report_store"]
+    ticket = reports.reports("B").query("status == 'Baru'").iloc[0].ticket
+    at.sidebar.radio(key="view").set_value("Laporan pekerja").run()
+    at.selectbox(key="reports_ticket_B").set_value(ticket).run()
+    before = len(reports.events("B", ticket))
+    click(at, "Tandai ditelaah")
+    assert reports.get("B", ticket)["status"] == "Ditinjau"
+    assert len(reports.events("B", ticket)) == before + 1
+    assert reports.events("B", ticket).kind.iloc[-1] == "status"
+
+
 def test_worker_report_is_branch_scoped_duplicate_acknowledged_and_legacy_csv_untouched(tmp_path, monkeypatch):
     monkeypatch.setenv("TEPAT_DEMO", "1")
     monkeypatch.setenv("TEPAT_RESULTS", str(tmp_path))

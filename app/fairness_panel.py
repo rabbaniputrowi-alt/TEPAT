@@ -11,21 +11,78 @@ import streamlit as st
 from tepat.fairness_eval import COUNTS, RATES, SEEDS, aggregate_groups
 
 DIMENSIONS = {"kabkota": "Kab/kota fiktif", "sector": "Sektor", "band_obs": "Band ukuran teramati"}
+SERIES = {"violation_rate": "Pelanggaran ditanam", "pick_rate": "Terpilih", "honest_flag_rate": "Jujur terpilih"}
+
+
+def _group_chart(rows: pd.DataFrame, dimension: str, labels: dict[str, str],
+                 chart_config: dict | None, horizontal: bool = False) -> alt.Chart:
+    """Plot measured, defined rates only; leave counts available in tooltips and tables."""
+    group = rows[rows.group == dimension].copy()
+    group["label"] = group.value.map(labels).fillna(group.value) if dimension == "sector" else group.value
+    plotted = group.melt(id_vars=["label"] + COUNTS, value_vars=list(SERIES),
+                         var_name="rate_name", value_name="rate").dropna(subset=["rate"])
+    plotted["metric"] = plotted.rate_name.map(SERIES)
+    order = group.label.tolist()
+    category = alt.Y("label:N", title=None, sort=order, axis=alt.Axis(labelLimit=180)) if horizontal else alt.X(
+        "label:N", title=None, sort=order, axis=alt.Axis(labelAngle=-20, labelLimit=180))
+    value = alt.X("rate:Q", title=None, axis=alt.Axis(format="%")) if horizontal else alt.Y(
+        "rate:Q", title=None, axis=alt.Axis(format="%"))
+    chart = alt.Chart(plotted).mark_bar(cornerRadiusEnd=3).encode(
+        **({"y": category, "yOffset": "metric:N", "x": value} if horizontal else
+           {"x": category, "xOffset": "metric:N", "y": value}),
+        color=alt.Color("metric:N", title=None, legend=alt.Legend(orient="bottom"),
+                        scale=alt.Scale(domain=list(SERIES.values()), range=["#98aeb5", "#087f82", "#d48b4a"])),
+        tooltip=["label", "metric", alt.Tooltip("rate:Q", format=".1%")]
+                + [alt.Tooltip(f"{col}:Q", format="d") for col in COUNTS]).properties(height=220 if horizontal else 280)
+    config = dict(chart_config or {})
+    config["background"] = "transparent"
+    config["view"] = {**config.get("view", {}), "fill": "transparent", "stroke": None}
+    return chart.configure(**config)
 
 
 def render(branch: str, directory: Path, benchmark: dict, sector_labels: dict[str, str],
            chart_config: dict | None = None) -> None:
     """Show committed full-population evaluations in both demo and local modes."""
     arm = benchmark["rankings"].get(f"{benchmark.get('final_ranking', 'tepat_v2_1')}_with_random_arm", {})
-    with st.container(key="summary"):
-        a, b, c = st.columns(3)
+    with st.container(key="workspace_fairness_summary"):
+        a, b, c, d = st.columns(4)
         a.metric("Anggaran jalur acak", "8%")
         a.caption("Bagian dari anggaran jam pemeriksaan, bukan kuota perusahaan.")
         b.metric("Perusahaan sampel acak", str(arm.get("random_arm_size", "Tidak tersedia")))
         rate = arm.get("random_arm_violation_rate")
         c.metric("Pelanggaran di sampel acak", f"{rate:.0%}" if rate is not None and arm.get("random_arm_size", 0) else "Tidak terdefinisi")
+        honest = arm.get("honest_flag_rate")
+        d.metric("Jujur ikut terpilih", f"{honest:.1%}".replace(".", ",") if honest is not None else "Tidak tersedia")
+        d.caption("Tingkat penandaan jujur TEPAT dengan jalur acak, bukan proporsi sampel acak.")
     st.info("Jalur acak berstrata menurut band ukuran saja, bukan sektor atau wilayah. Sampel di luar daftar berisiko tinggi "
             "membantu diagnostik seleksi; bukan angka prevalensi nasional. Angka jalur acak di atas berasal dari seed bawaan.")
+    default_path = directory / "runs" / f"seed_{SEEDS[0]}.json"
+    if not default_path.is_file():
+        st.warning("Evaluasi seed bawaan belum tersedia. Tidak ada nilai nol pengganti.")
+        return
+    payload = json.loads(default_path.read_text(encoding="utf-8"))
+    rows = pd.DataFrame(payload["groups"])
+    branch_rows = rows[rows.branch == branch].copy()
+    if branch_rows.empty:
+        st.warning("Kelompok pada seed bawaan tidak tersedia, bukan kelompok dengan tingkat 0%.")
+        return
+    with st.container(border=True, key="workspace_fairness_sector"):
+        st.subheader("Pola pemeriksaan menurut sektor")
+        st.caption("Tingkat per sektor pada seed bawaan. Grafik tidak menyertakan jalur acak.")
+        st.altair_chart(_group_chart(branch_rows, "sector", sector_labels, chart_config), theme=None, width="stretch")
+        sectors = branch_rows[(branch_rows.group == "sector") & (~branch_rows.small_n)].dropna(
+            subset=["violation_rate", "pick_rate"])
+        if not sectors.empty:
+            widest = sectors.loc[(sectors.violation_rate - sectors.pick_rate).idxmax()]
+            name = sector_labels.get(widest.value, widest.value)
+            st.caption(f"{name}: pelanggaran ditanam {widest.violation_rate:.1%}, terpilih "
+                       f"{widest.pick_rate:.1%} (selisih terbesar pada seed ini di kelompok tanpa small-n). "
+                       "Ini perbandingan deskriptif, bukan alasan mengubah bobot jalur acak.")
+    with st.container(border=True, key="workspace_fairness_size"):
+        st.subheader("Pola pemeriksaan menurut band ukuran teramati")
+        st.caption("Band berdasarkan pekerja teramati, bukan klasifikasi skala usaha legal.")
+        st.altair_chart(_group_chart(branch_rows, "band_obs", sector_labels, chart_config, horizontal=True),
+                        theme=None, width="stretch")
     st.caption("Evaluasi ini hanya memakai data sintetis dan kunci jawaban simulasi. Nama kab/kota fiktif dan nilai UMK "
                "bukan wilayah atau ketetapan nyata. Selisih antar kelompok bukan bukti bias hilang atau keadilan dunia nyata, "
                "dan tidak menetapkan kuota pemilihan otomatis.")
@@ -41,16 +98,10 @@ def render(branch: str, directory: Path, benchmark: dict, sector_labels: dict[st
     st.caption("Penyebut nol berarti tidak terdefinisi, bukan 0%. small_n menandai n_total < 30 atau n_honest < 30 "
                "sebagai peringatan deskriptif, bukan ambang signifikansi. __missing__ berarti label teramati tidak tersedia.")
     dimension = st.selectbox("Kelompok evaluasi", list(DIMENSIONS), format_func=DIMENSIONS.get, key="fairness_dimension")
-    default_path = directory / "runs" / f"seed_{SEEDS[0]}.json"
     st.subheader(f"Seed bawaan {SEEDS[0]}")
     st.caption("TEPAT v2.1 tanpa jalur acak, seluruh populasi terdaftar pada konfigurasi bawaan. "
                "Tabel ini berasal dari evaluasi tersimpan, bukan hasil tindak lanjut petugas atau pelatihan ulang dalam aplikasi.")
-    if not default_path.is_file():
-        st.warning("Evaluasi seed bawaan belum tersedia. Tidak ada nilai nol pengganti.")
-        return
-    payload = json.loads(default_path.read_text(encoding="utf-8"))
-    rows = pd.DataFrame(payload["groups"])
-    default = rows[(rows.branch == branch) & (rows.group == dimension)].copy()
+    default = branch_rows[branch_rows.group == dimension].copy()
     if default.empty:
         st.warning("Kelompok pada seed bawaan tidak tersedia, bukan kelompok dengan tingkat 0%.")
         return
@@ -64,19 +115,8 @@ def render(branch: str, directory: Path, benchmark: dict, sector_labels: dict[st
                      "pick_rate": st.column_config.NumberColumn("Tingkat terpilih", format="percent"),
                      "violation_rate": st.column_config.NumberColumn("Pelanggaran ditanam", format="percent"),
                      "honest_flag_rate": st.column_config.NumberColumn("Jujur terpilih", format="percent")})
-    plotted = default.melt(id_vars=["label"] + COUNTS, value_vars=list(RATES), var_name="metric", value_name="rate")
-    plotted["metric"] = plotted.metric.map({"pick_rate": "Terpilih", "violation_rate": "Pelanggaran ditanam", "honest_flag_rate": "Jujur terpilih"})
-    chart = alt.Chart(plotted.dropna(subset=["rate"])).mark_bar(cornerRadiusEnd=3).encode(
-        x=alt.X("label:N", title=None, axis=alt.Axis(labelAngle=-20, labelLimit=180)), xOffset="metric:N",
-        y=alt.Y("rate:Q", title=None, axis=alt.Axis(format="%")),
-        color=alt.Color("metric:N", title=None, legend=alt.Legend(orient="bottom"),
-                        scale=alt.Scale(domain=["Terpilih", "Pelanggaran ditanam", "Jujur terpilih"],
-                                        range=["#087f82", "#98aeb5", "#d48b4a"])),
-        tooltip=["label", "metric", alt.Tooltip("rate:Q", format=".1%")]
-                + [alt.Tooltip(f"{col}:Q", format="d") for col in COUNTS]).properties(height=240)
-    if chart_config:
-        chart = chart.configure(**chart_config)
-    st.altair_chart(chart, theme=None, width="stretch")
+    with st.container(border=True, key="workspace_fairness_selected"):
+        st.altair_chart(_group_chart(branch_rows, dimension, sector_labels, chart_config), theme=None, width="stretch")
     st.caption("Grafik hanya menggambar tingkat terdefinisi. Penyebut dan kelompok tanpa nilai tetap ada di tabel.")
     st.caption("Band ukuran dihitung dari pekerja teramati, bukan skala usaha legal. Untuk usaha mikro dan kecil, "
                "upah di bawah UMK bukan pelanggaran (Perpres 59/2024 Ps. 32(4), E05c). Label pelanggaran hanya untuk evaluasi sintetis.")
